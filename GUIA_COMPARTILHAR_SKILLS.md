@@ -171,6 +171,28 @@ desinstalar nem reinstalar nada.
 ```
 Quem quer tudo cola o bloco; quem quer uma, habilita uma. (O único atrito seria misturar pacotão+avulso — §3.1.)
 
+### 3.7 Plug and play: com plugin você NÃO escolhe a pasta (e nem precisa)
+Diferente do nível 0 (junction), ao instalar via plugin o Claude Code **gerencia o armazenamento sozinho**:
+baixa para `~/.claude/plugins/` (`marketplaces/<mkt>/` + `cache/<mkt>/<plugin>/<versão>/`) e **descobre as skills
+automaticamente** — você não aponta nada para `~/.claude/skills/` nem cria atalho. Isso é *mais* plug-and-play
+que o junction, não menos. (Não há setting para redirecionar essa pasta — é gerenciado por design.)
+
+**O mais plug-and-play para o time** = pré-cadastrar no `settings.json` (pessoal `~/.claude/settings.json` ou do
+projeto). Ao confiar na pasta, o marketplace é adicionado e os plugins habilitados **sozinhos**:
+```json
+{
+  "extraKnownMarketplaces": {
+    "gradus-murilo": {
+      "source": { "source": "github", "repo": "gradusmsimao/gradus-skills-MU" },
+      "autoUpdate": true
+    }
+  },
+  "enabledPlugins": { "gradus-explore@gradus-murilo": true }
+}
+```
+> O `~/.claude/skills/` (modelo junction) só vale a pena para o DEV da sua própria skill (nível 0); aí o atalho
+> é manual (ou um script de install). Para CONSUMIR a do colega, o plugin já resolve sem você tocar em pasta.
+
 ---
 
 ## Parte 4 — Nível 2: marketplace central do time (curado)
