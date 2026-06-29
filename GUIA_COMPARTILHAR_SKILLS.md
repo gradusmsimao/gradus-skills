@@ -91,36 +91,50 @@ Editar o `SKILL.md` no repo passa a valer na sessão atual (live change detectio
 Para um colega consumir suas skills, seu repo precisa de **dois** arquivos JSON. As skills ficam dentro de
 um "plugin"; o "marketplace" lista os plugins.
 
-### 3.1 Layout
-```
-gradus-skills/
-├── .claude-plugin/
-│   ├── plugin.json        # manifest do plugin (a RAIZ do repo é o plugin)
-│   └── marketplace.json   # lista esse plugin via source "./"
-└── skills/
-    └── minha-skill/SKILL.md
-```
-> Mantendo `skills/` na raiz, os junctions do nível 0 continuam válidos — o mesmo repo serve dev e distribuição.
+### 3.1 Layout — escolha a granularidade de instalação
 
-### 3.2 `.claude-plugin/marketplace.json`
+**(A) Um plugin por skill — à la carte** (recomendado p/ grassroots; o colega instala só o que quer):
+```
+gradus-skills-MU/
+├── .claude-plugin/
+│   └── marketplace.json            # lista N plugins, um por skill
+└── plugins/
+    ├── minha-skill-1/
+    │   ├── .claude-plugin/plugin.json
+    │   └── skills/minha-skill-1/SKILL.md
+    └── minha-skill-2/
+        ├── .claude-plugin/plugin.json
+        └── skills/minha-skill-2/SKILL.md
+```
+**(B) Um plugin único — pacotão** (tudo-ou-nada; mais simples): a raiz é o plugin
+(`.claude-plugin/plugin.json` + `skills/`), e a marketplace lista 1 plugin com `source: "./"`.
+> ⚠️ **Não misture A e B** sobre as mesmas skills: como skills de plugin são namespaced por plugin, instalar o
+> pacotão *e* um avulso faz a mesma skill aparecer **duas vezes**. Escolha um modelo.
+> Em qualquer um, os junctions do nível 0 seguem válidos (apontam para a pasta da skill).
+
+### 3.2 `.claude-plugin/marketplace.json` (modelo A — à la carte)
 ```json
 {
   "name": "gradus-murilo",
   "owner": { "name": "Murilo Simão" },
-  "metadata": { "description": "Skills do Murilo (analytics Gradus)", "version": "1.0.0" },
+  "metadata": { "description": "Skills do Murilo — instale à la carte", "version": "1.1.0" },
   "plugins": [
-    { "name": "gradus-skills", "source": "./",
-      "description": "Pacote com as minhas skills", "version": "1.0.0" }
+    { "name": "minha-skill-1", "source": "./plugins/minha-skill-1",
+      "description": "...", "version": "1.0.0" },
+    { "name": "minha-skill-2", "source": "./plugins/minha-skill-2",
+      "description": "...", "version": "1.0.0" }
   ]
 }
 ```
-> Schema real (validado com `claude plugin validate .`): a descrição vai em **`metadata.description`**, não na
-> raiz; o `source` de um plugin no MESMO repo é **`"./"`**; cada `source` externo é um **objeto** (ver 4.1).
+> Schema real (validado com `claude plugin validate .`): a descrição vai em **`metadata.description`**, nunca na
+> raiz; `source` local = **string de caminho** (`"./"` no pacotão, `"./plugins/<x>"` por skill); `source` externo
+> (nível 2) é um **objeto** (ver 4.1).
 
-### 3.3 `.claude-plugin/plugin.json`
+### 3.3 `plugins/<skill>/.claude-plugin/plugin.json` (um por skill no modelo A)
 ```json
-{ "name": "minhas-skills", "description": "Skills de análise da Gradus", "version": "1.0.0" }
+{ "name": "minha-skill-1", "description": "O que a skill faz", "version": "1.0.0" }
 ```
+> No pacotão (B) existe **um** `plugin.json`, no `.claude-plugin/` da raiz.
 
 ### 3.4 Validar e publicar
 ```bash
@@ -130,13 +144,32 @@ git add . && git commit -m "publica como marketplace" && git push
 
 ### 3.5 Um colega passa a usar (1x)
 ```bash
-/plugin marketplace add gradusmsimao/gradus-skills-MU      # owner/repo do GitHub
-/plugin install gradus-skills@gradus-murilo             # instala o plugin
+/plugin marketplace add gradusmsimao/gradus-skills-MU    # owner/repo do GitHub
+/plugin install gradus-explore@gradus-murilo             # pega UMA skill (modelo A)
+# ...ou várias (uma por linha); a UI do /plugin também deixa marcar várias
 ```
 Atualizar quando você commitar algo novo:
 ```bash
 /plugin marketplace update gradus-murilo
 ```
+
+### 3.6 Pegar TODAS vs UMA (e mudar de ideia depois)
+No modelo A, instalar é **aditivo**: pegou uma e depois quer o resto? Só instalar os que faltam — sem
+desinstalar nem reinstalar nada.
+```bash
+/plugin install gradus-qa-checklist@gradus-murilo   # adiciona mais uma, quando quiser
+```
+**Pegar todas de uma vez** (sem instalar uma a uma): pré-habilite no `settings.json`:
+```json
+{ "enabledPlugins": {
+    "gradus-explore@gradus-murilo": true,
+    "gradus-metric-reconciliation@gradus-murilo": true,
+    "gradus-qa-checklist@gradus-murilo": true,
+    "gradus-session-handoff@gradus-murilo": true,
+    "gradus-analysis-setup@gradus-murilo": true
+} }
+```
+Quem quer tudo cola o bloco; quem quer uma, habilita uma. (O único atrito seria misturar pacotão+avulso — §3.1.)
 
 ---
 
@@ -152,7 +185,7 @@ O time de analytics mantém **um** repo (ex.: `gradus/gradus-skills-marketplace`
   "owner": { "name": "Analytics Gradus" },
   "metadata": { "description": "Skills validadas — analytics Gradus" },
   "plugins": [
-    { "name": "murilo", "source": { "source": "github", "repo": "gradusmsimao/gradus-skills", "ref": "v1.0.0" } },
+    { "name": "murilo", "source": { "source": "github", "repo": "gradusmsimao/gradus-skills-MU", "ref": "v1.0.0" } },
     { "name": "fulano", "source": { "source": "github", "repo": "fulano/skills" } }
   ]
 }

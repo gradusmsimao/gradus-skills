@@ -1,0 +1,10 @@
+{
+  "name": "gradus-analysis-setup",
+  "description": "Provisiona o andaime completo de um projeto de análise complexa da Gradus — a frota de subagents (auditora, executora, frontend, organizadora) MAIS os arquivos-base canônicos (CLAUDE.md estruturado, FONTE_DA_VERDADE, PLANO_AUDITORIA, INVENTÁRIO, CAMINHO_CRÍTICO), parametrizados por entrevista guiada. Também detecta e corrige drift de constantes em projetos já montados. ACIONE ESTA SKILL SOMENTE quando o consultor invocar explicitamente com o comando /gradus-analysis-setup. NÃO acione por inferência de contexto nem por palavras-chave no chat.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Murilo Simão",
+    "email": "murilo.simao@gradusconsultoria.com.br"
+  },
+  "repository": "https://github.com/gradusmsimao/gradus-skills-MU"
+}

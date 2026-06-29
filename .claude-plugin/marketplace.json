@@ -1,15 +1,42 @@
 {
   "name": "gradus-murilo",
-  "owner": { "name": "Murilo Simão", "email": "murilo.simao@gradusconsultoria.com.br" },
+  "owner": {
+    "name": "Murilo Simão",
+    "email": "murilo.simao@gradusconsultoria.com.br"
+  },
   "metadata": {
-    "description": "Marketplace pessoal (grassroots) das skills do Murilo — analytics Gradus.",
-    "version": "1.0.0"
+    "description": "Marketplace pessoal (grassroots) das skills do Murilo — analytics Gradus. Cada skill é um plugin: instale à la carte.",
+    "version": "1.1.0"
   },
   "plugins": [
     {
-      "name": "gradus-skills",
-      "source": "./",
-      "description": "Pacote com 5 skills: gradus-analysis-setup, gradus-explore, gradus-metric-reconciliation, gradus-qa-checklist, gradus-session-handoff.",
+      "name": "gradus-analysis-setup",
+      "source": "./plugins/gradus-analysis-setup",
+      "description": "Provisiona o andaime de um projeto de análise (frota de subagents + docs canônicos + harness).",
+      "version": "1.0.0"
+    },
+    {
+      "name": "gradus-explore",
+      "source": "./plugins/gradus-explore",
+      "description": "Perfil/EDA inicial de uma base (parquet/CSV via DuckDB) + ficha no catálogo.",
+      "version": "1.0.0"
+    },
+    {
+      "name": "gradus-metric-reconciliation",
+      "source": "./plugins/gradus-metric-reconciliation",
+      "description": "Reconcilia uma métrica que diverge entre fontes e investiga a causa.",
+      "version": "1.0.0"
+    },
+    {
+      "name": "gradus-qa-checklist",
+      "source": "./plugins/gradus-qa-checklist",
+      "description": "Gate leve de qualidade antes de entregar número/análise/slide.",
+      "version": "1.0.0"
+    },
+    {
+      "name": "gradus-session-handoff",
+      "source": "./plugins/gradus-session-handoff",
+      "description": "Ritual de fim de bloco/sessão: distila a conversa em fatos/decisões/foco.",
       "version": "1.0.0"
     }
   ]

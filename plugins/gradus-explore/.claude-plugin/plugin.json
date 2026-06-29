@@ -1,0 +1,10 @@
+{
+  "name": "gradus-explore",
+  "description": "Perfil / EDA inicial de uma base em projeto de análise Gradus (parquet/CSV via DuckDB, out-of-core — NÃO carregar tudo no pandas). Use ao receber uma base nova e precisar entender forma/grão/qualidade antes da análise, ou quando um número surpreende e quer checar o dado por baixo. Roda scripts/explore.py (schema, linhas, stats por coluna via SUMMARIZE, head+tail — sem inundar o contexto) e encerra registrando a ficha da base no catálogo do projeto. NÃO use para reconciliar fontes que divergem (gradus-metric-reconciliation), auditoria metodológica (auditora), nem para montar deck (storyline).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Murilo Simão",
+    "email": "murilo.simao@gradusconsultoria.com.br"
+  },
+  "repository": "https://github.com/gradusmsimao/gradus-skills-MU"
+}

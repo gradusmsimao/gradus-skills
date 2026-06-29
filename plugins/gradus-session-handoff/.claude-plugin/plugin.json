@@ -1,0 +1,10 @@
+{
+  "name": "gradus-session-handoff",
+  "description": "Ritual de FIM de bloco/sessão num projeto de análise Gradus: distila a conversa em FATOS (não logs), atualiza o estado e captura aprendizados — para a próxima sessão (ou outra aba) não nascer cega. Use ao encerrar um bloco de trabalho, ao trocar de tema, antes de fechar a sessão, ou quando o contexto está ficando longo (pré-compactação). Distila: memória (fatos novos, SUBSTITUINDO os obsoletos), log de decisões, foco atual, e uma retrospectiva curta (o que funcionou / o que melhorar). NÃO é para injetar contexto no INÍCIO (isso é o hook SessionStart), nem para escrever deck (storyline).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Murilo Simão",
+    "email": "murilo.simao@gradusconsultoria.com.br"
+  },
+  "repository": "https://github.com/gradusmsimao/gradus-skills-MU"
+}

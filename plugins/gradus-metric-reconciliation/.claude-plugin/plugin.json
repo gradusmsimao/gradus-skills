@@ -1,0 +1,10 @@
+{
+  "name": "gradus-metric-reconciliation",
+  "description": "Reconcilia uma métrica que diverge entre fontes e investiga a CAUSA da diferença, em projetos de análise Gradus (dados em parquet/CSV/Excel via DuckDB, não warehouse SQL). Use quando dois números que DEVERIAM bater não batem — duas agregações/escadas, total de uma base antes×depois de re-rodar, número de deck antigo×novo, gabarito×base, uma fonte×outra — ou para validar uma base reconstruída. Encerra SEMPRE registrando o número reconciliado no ledger de números do projeto (com proveniência). NÃO use para explorar base nova (use gradus-explore / programmatic-eda), auditoria metodológica ampla (auditora), nem para montar deck (storyline).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Murilo Simão",
+    "email": "murilo.simao@gradusconsultoria.com.br"
+  },
+  "repository": "https://github.com/gradusmsimao/gradus-skills-MU"
+}

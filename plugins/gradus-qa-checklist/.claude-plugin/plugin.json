@@ -1,0 +1,10 @@
+{
+  "name": "gradus-qa-checklist",
+  "description": "Gate LEVE de qualidade ANTES de entregar um número/análise/slide ao sócio ou cliente, em projetos Gradus. Use logo antes de mandar um entregável (número, tabela, deck, dashboard) para conferir o essencial: número bate com o ledger? proveniência citada? premissas explícitas? grão/janela corretos? sem dado fabricado? É uma verificação rápida pré-entrega — NÃO é auditoria metodológica profunda (use a auditora), nem revisão visual de PPTX (use gradus-pptx-reviewer), nem o gate de render de deck/HTML (frontend).",
+  "version": "1.0.0",
+  "author": {
+    "name": "Murilo Simão",
+    "email": "murilo.simao@gradusconsultoria.com.br"
+  },
+  "repository": "https://github.com/gradusmsimao/gradus-skills-MU"
+}
