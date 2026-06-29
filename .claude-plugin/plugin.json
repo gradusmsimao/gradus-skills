@@ -3,6 +3,6 @@
   "description": "Skills de análise de dados e gestão da Gradus: setup de andaime de projeto, exploração de bases, reconciliação de métricas, QA e handoff de sessão.",
   "version": "1.0.0",
   "author": { "name": "Murilo Simão", "email": "murilo.simao@gradusconsultoria.com.br" },
-  "repository": "https://github.com/gradusmsimao/gradus-skills",
+  "repository": "https://github.com/gradusmsimao/gradus-skills-MU",
   "keywords": ["gradus", "analytics", "data", "duckdb", "consulting"]
 }

@@ -130,7 +130,7 @@ git add . && git commit -m "publica como marketplace" && git push
 
 ### 3.5 Um colega passa a usar (1x)
 ```bash
-/plugin marketplace add gradusmsimao/gradus-skills      # owner/repo do GitHub
+/plugin marketplace add gradusmsimao/gradus-skills-MU      # owner/repo do GitHub
 /plugin install gradus-skills@gradus-murilo             # instala o plugin
 ```
 Atualizar quando você commitar algo novo:
