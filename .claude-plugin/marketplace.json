@@ -1,0 +1,16 @@
+{
+  "name": "gradus-murilo",
+  "owner": { "name": "Murilo Simão", "email": "murilo.simao@gradusconsultoria.com.br" },
+  "metadata": {
+    "description": "Marketplace pessoal (grassroots) das skills do Murilo — analytics Gradus.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "gradus-skills",
+      "source": "./",
+      "description": "Pacote com 5 skills: gradus-analysis-setup, gradus-explore, gradus-metric-reconciliation, gradus-qa-checklist, gradus-session-handoff.",
+      "version": "1.0.0"
+    }
+  ]
+}

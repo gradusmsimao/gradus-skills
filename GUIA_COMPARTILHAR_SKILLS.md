@@ -95,29 +95,29 @@ um "plugin"; o "marketplace" lista os plugins.
 ```
 gradus-skills/
 ├── .claude-plugin/
-│   └── marketplace.json          # lista os plugins do repo
-└── plugins/
-    └── minhas-skills/
-        ├── .claude-plugin/
-        │   └── plugin.json        # manifest do plugin
-        └── skills/
-            └── minha-skill/SKILL.md
+│   ├── plugin.json        # manifest do plugin (a RAIZ do repo é o plugin)
+│   └── marketplace.json   # lista esse plugin via source "./"
+└── skills/
+    └── minha-skill/SKILL.md
 ```
+> Mantendo `skills/` na raiz, os junctions do nível 0 continuam válidos — o mesmo repo serve dev e distribuição.
 
 ### 3.2 `.claude-plugin/marketplace.json`
 ```json
 {
   "name": "gradus-murilo",
-  "description": "Skills do Murilo (analytics Gradus)",
   "owner": { "name": "Murilo Simão" },
+  "metadata": { "description": "Skills do Murilo (analytics Gradus)", "version": "1.0.0" },
   "plugins": [
-    { "name": "minhas-skills", "source": "./plugins/minhas-skills",
-      "description": "Pacote de skills de análise" }
+    { "name": "gradus-skills", "source": "./",
+      "description": "Pacote com as minhas skills", "version": "1.0.0" }
   ]
 }
 ```
+> Schema real (validado com `claude plugin validate .`): a descrição vai em **`metadata.description`**, não na
+> raiz; o `source` de um plugin no MESMO repo é **`"./"`**; cada `source` externo é um **objeto** (ver 4.1).
 
-### 3.3 `plugins/minhas-skills/.claude-plugin/plugin.json`
+### 3.3 `.claude-plugin/plugin.json`
 ```json
 { "name": "minhas-skills", "description": "Skills de análise da Gradus", "version": "1.0.0" }
 ```
@@ -131,7 +131,7 @@ git add . && git commit -m "publica como marketplace" && git push
 ### 3.5 Um colega passa a usar (1x)
 ```bash
 /plugin marketplace add gradusmsimao/gradus-skills      # owner/repo do GitHub
-/plugin install minhas-skills@gradus-murilo             # instala o plugin
+/plugin install gradus-skills@gradus-murilo             # instala o plugin
 ```
 Atualizar quando você commitar algo novo:
 ```bash
@@ -149,8 +149,8 @@ O time de analytics mantém **um** repo (ex.: `gradus/gradus-skills-marketplace`
 ```json
 {
   "name": "gradus",
-  "description": "Skills validadas — analytics Gradus",
   "owner": { "name": "Analytics Gradus" },
+  "metadata": { "description": "Skills validadas — analytics Gradus" },
   "plugins": [
     { "name": "murilo", "source": { "source": "github", "repo": "gradusmsimao/gradus-skills", "ref": "v1.0.0" } },
     { "name": "fulano", "source": { "source": "github", "repo": "fulano/skills" } }
