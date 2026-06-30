@@ -28,6 +28,12 @@
       "version": "1.0.0"
     },
     {
+      "name": "gradus-publish-skill",
+      "source": "./plugins/gradus-publish-skill",
+      "description": "Use ao querer PUBLICAR ou ATUALIZAR uma skill no repo de marketplace do time (gradus-skills-MU no GitHub), deixando-a instalável via /plugin pelos colegas. Gatilhos — \"subir essa skill\", \"publicar a skill no github\", \"atualizar a skill no marketplace\", \"deixar a skill disponível pro time\", \"commitar a skill\". NÃO use para commitar código dos sistemas Gradus Tech (isso é gradus-github-commit) nem para criar uma skill nova do zero (writing-skills).",
+      "version": "1.0.0"
+    },
+    {
       "name": "gradus-qa-checklist",
       "source": "./plugins/gradus-qa-checklist",
       "description": "Gate leve de qualidade antes de entregar número/análise/slide.",
