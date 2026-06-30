@@ -1,0 +1,1112 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><!-- GEN: TITLE --></title>
+
+<!-- ============================================================
+     ESQUELETO DECK-MODE GRADUS — referenciado por SKILL.md
+     1 slide = 1 .slide 16:9 (1280×720) com transform:scale() pra letterbox
+     Edição inline + localStorage + mapa-mestre flutuante
+     Pontos de injeção marcados com "GEN: ..."
+     ============================================================ -->
+
+<!-- Chart.js 4.4.1 via CDN (fallback offline: embutir em produção) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<style>
+/* ============================================================
+   1. TOKENS GRADUS NOVA — fonte: design-tokens-per-template.md §0
+   ============================================================ */
+:root{
+  /* cor — tema oficial */
+  --navy:        #002060;
+  --navy-2:      #12376C;
+  --blue:        #306F9F;
+  --blue-light:  #9DB1CF;
+  --blue-light2: #C9D5E6;
+  --orange:      #E68E18;
+  --amber:       #FFC000;
+  --red:         #C00000;
+  --green:       #70AD47;
+  --maroon:      #800000;
+  --grey-shade:  #D9D9D9;
+  --grey-mid:    #A5A5A5;
+  --zebra:       #F2F2F2;
+  --rule:        #9DB1CF;
+  --ink:         #002060;
+  --paper:       #FFFFFF;
+  /* tipografia */
+  --font: "Gadugi", "Segoe UI", Arial, sans-serif;
+  --fs-lead: 20pt; --fs-sub: 13pt; --fs-body: 11pt; --fs-small: 9pt;
+  /* geometria (fração do canvas 1280×720) */
+  --pad-x: 1.4%;
+  --title-h: 10%;
+  --rule-y: 11.7%;
+  --util-top: 12.2%; --util-bottom: 84%;
+  --footer-y: 96.3%;
+}
+
+/* ============================================================
+   2. SCAFFOLD — palco fixo + scale letterbox (no-scroll 16:9)
+   ============================================================ */
+*{ box-sizing:border-box; }
+html, body{
+  margin:0; padding:0;
+  width:100%; height:100vh;
+  background:#1a1a1a;
+  font-family:var(--font);
+  overflow:hidden;
+}
+.stage-wrap{
+  width:100vw; height:calc(100vh - 48px);
+  position:relative;
+  overflow:hidden;
+}
+.stage{
+  width:1280px; height:720px;
+  background:var(--paper);
+  position:absolute;
+  top:0; left:0;
+  transform-origin:top left;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+/* JS faz o scale dinâmico + centralização via translate no resize.
+   IMPORTANTE: transform-origin = top left. A centralização vem via
+   translate dentro do mesmo transform (não via flex), pra eventos
+   de click ficarem alinhados com a escala. */
+
+/* ============================================================
+   3. SLIDE BASE
+   ============================================================ */
+.slide{
+  position:absolute; inset:0;
+  color:var(--ink);
+  display:none;
+  /* Métricas extraídas do slideLayout2.xml do PPTX oficial:
+     - title: x=18, y=5.6, w=1242, h=71.9 (até y=77.5)
+     - régua = bottom do title em y=82.1 (faixa azul de 4-5px)
+     - subtítulo: x=18, y=82.1, w=1242, h=57.3
+     - footer: x=0, y=693, w=1245, h=27.2 (FULL WIDTH, sem recuo lateral)
+     - PRELIMINAR: x=1129, w=151, alinhado ao bottom (fica abaixo da régua) */
+}
+.slide.active{ display:block; }
+
+/* Lead title — posição exata definida pelo usuário */
+.slide .lead{
+  position:absolute; left:12px; top:2px;
+  width:1252px;
+  height:70px;
+  font-size:18pt; font-weight:700; color:var(--navy);
+  line-height:1.18;
+  overflow:hidden;
+}
+.slide .lead .it{ font-style:italic; }
+
+/* Régua azul grossa — shape do slideMaster: x=0, y=79.5, w=1280, h=5.3
+   Vai de borda a borda do slide, fora das caixas de título/subhead. */
+.slide::before{
+  content:""; position:absolute;
+  left:0; right:0; top:79px;
+  height:5px; background:var(--navy);
+  pointer-events:none;
+  z-index:1;
+}
+
+/* Subhead — posição exata definida pelo usuário */
+.slide .subhead{
+  position:absolute; left:12px; top:84px;
+  width:1252px; height:57px;
+  font-size:var(--fs-sub); font-weight:700; color:var(--navy);
+  letter-spacing:.3px;
+  padding-top:8px; /* gap visual entre régua e primeira letra do subhead */
+}
+
+/* Canvas: começa abaixo do subhead (y=82+57=139), termina antes do footer (y=693) */
+.slide .canvas{
+  position:absolute; left:18px; right:18px;
+  top:145px; bottom:38px;
+}
+
+/* Rodapé — full width (x=0, w=1245), como no PPTX.
+   top ajustado pra acomodar logo de 26px sem estourar 720. */
+.slide .foot{
+  position:absolute; left:0; right:0; top:688px;
+  height:32px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:var(--fs-small);
+  border-top:1px solid var(--grey-mid);
+  padding:4px 18px 0;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.slide .foot .src{
+  flex:1; color:var(--navy); /* fonte é AZUL, não cinza */
+  padding-left:18px; /* dá um "tab" à esquerda (recuo do texto da fonte) */
+}
+.slide .foot .right{ display:flex; align-items:center; gap:14px; }
+.slide .foot .pageno{
+  color:var(--navy);
+  font-variant-numeric:tabular-nums;
+}
+.slide .foot .brand{ display:flex; align-items:center; }
+
+/* ============================================================
+   4. COMPONENTES TRANSVERSAIS
+   ============================================================ */
+
+/* chevron de conta OM */
+.chevron{
+  display:inline-block; background:var(--navy); color:#fff;
+  font-weight:700; font-size:var(--fs-small);
+  padding:3px 18px 3px 10px;
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);
+}
+.breadcrumb{ display:flex; gap:4px; margin-top:1%; }
+
+/* badge de função (5 canônicos) — ABAIXO da régua, alinhado à direita.
+   Tem faixa navy ACIMA e ABAIXO do texto (sublinhado em cima e embaixo). */
+.badge{
+  position:absolute; top:115px; right:18px;
+  font-weight:700; font-size:var(--fs-small);
+  color:var(--navy);
+  border-top:2px solid var(--navy);
+  border-bottom:2px solid var(--navy);
+  letter-spacing:.5px; text-transform:uppercase;
+  padding:2px 0;
+  z-index:5;
+}
+.badge.hidden{ display:none; }
+
+/* callout de oportunidade — DEFAULT é elipse achatada (bubble) draggável.
+   Dimensão padrão extraída do PPTX: w=182, h=86 (ratio w/h ≈ 2,11:1). */
+.callout-opp{
+  position:absolute; background:var(--maroon); color:#fff;
+  font-weight:700; text-align:center;
+  padding:10px 20px; line-height:1.25;
+  font-size:var(--fs-body);
+  width:182px; height:86px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box;
+  cursor:move;             /* indica que é draggável */
+  user-select:none;        /* não selecionar texto ao arrastar */
+  z-index:3;
+}
+.callout-opp.dragging{ opacity:.85; box-shadow:0 4px 12px rgba(0,0,0,.3); }
+.callout-opp.bubble{ border-radius:50%; }
+.callout-opp.rect{ border-radius:10px; }
+.bubble-text{ display:inline-block; outline:none; }
+
+/* bubble custom criado pelo botão "+ Bubble" — cor navy (#002060) em vez de bordô */
+.callout-opp.custom-navy{
+  background:var(--navy);
+  /* CSS resize nativo: handle aparece no canto inferior direito */
+  resize:both;
+  overflow:auto;
+  min-width:80px; min-height:40px;
+}
+.callout-opp.custom-navy::-webkit-resizer{
+  background:rgba(255,255,255,.3);
+}
+/* modo edição: cursor de texto + outline visível + permite seleção */
+.callout-opp.custom-navy.editing{
+  cursor:text;
+  user-select:text;
+  -webkit-user-select:text;
+  outline:2px dashed var(--orange);
+  outline-offset:2px;
+}
+/* botão de remover (X) — aparece no hover ou quando o bubble está focado */
+.bubble-delete{
+  position:absolute; top:-10px; right:-10px;
+  width:22px; height:22px;
+  background:var(--red); color:#fff;
+  border-radius:50%; border:2px solid #fff;
+  font-size:13px; font-weight:700; line-height:1;
+  cursor:pointer;
+  display:none;
+  align-items:center; justify-content:center;
+  z-index:10;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+.bubble-delete:hover{ background:#a00000; }
+.callout-opp.custom-navy:hover .bubble-delete,
+.callout-opp.custom-navy.editing .bubble-delete,
+.callout-opp.custom-navy.selected .bubble-delete{
+  display:flex;
+}
+.callout-opp.custom-navy.selected{
+  outline:2px solid var(--orange);
+  outline-offset:2px;
+}
+
+/* veredito "Sem Oportunidade" */
+.verdict-none{
+  position:absolute; top:60px; right:80px;
+  background:var(--maroon); color:#fff;
+  font-weight:700; padding:14px 22px;
+  border-radius:50%/45%;
+  font-size:var(--fs-body);
+}
+
+/* linha de referência (meta/mediana) */
+.ref-line{
+  position:absolute; left:0; right:0; height:2px;
+  background:var(--red);
+}
+.ref-line.dashed{
+  background:repeating-linear-gradient(90deg,var(--red) 0 8px,transparent 8px 14px);
+}
+
+/* tabela padrão — largura proporcional ao conteúdo, centralizada no canvas.
+   Bordas POR CÉLULA (não pela linha) — emula caixas de texto independentes do PPTX,
+   com gap horizontal entre colunas (border-spacing). */
+.tbl{
+  width:auto; max-width:100%;
+  margin:0 auto;
+  border-collapse:separate;        /* permite gap entre colunas */
+  border-spacing:14px 0;            /* gap horizontal de 14px, sem vertical */
+  font-size:var(--fs-body); color:var(--navy);
+}
+.tbl-full{ width:100%; }
+.tbl th{ font-weight:700; text-align:left; padding:4px 6px; white-space:nowrap; vertical-align:bottom; }
+.tbl th.grp{ border-bottom:1px solid var(--navy); text-align:left; }
+/* th com rowspan: border-bottom alinhado com a régua das colunas da direita */
+.tbl thead th[rowspan]{ border-bottom:1px solid var(--navy); }
+.tbl td{ text-align:left; padding:4px 6px; white-space:nowrap; }
+/* colunas numéricas: alinhar à direita explicitamente via class .num */
+.tbl th.num, .tbl td.num{ text-align:right; }
+.tbl th.center, .tbl td.center{ text-align:center; }
+/* régua inferior do cabeçalho — POR CÉLULA, navy, com gap natural entre colunas */
+.tbl thead tr:last-child th{ border-bottom:1px solid var(--navy); }
+.tbl .it{ font-style:italic; }
+/* régua sobre Total — POR CÉLULA, navy */
+.tbl tfoot .total td{ font-weight:700; border-top:1px solid var(--navy); }
+.tbl tr.zebra{ background:var(--zebra); }
+.canvas-tbl-wrap{ width:100%; height:100%; display:flex; align-items:flex-start; justify-content:center; }
+
+/* shade móvel (buildup / mapa) */
+.shade{
+  position:absolute; background:var(--grey-shade);
+  z-index:0;
+  pointer-events:none;
+}
+
+/* contenteditable — feedback visual sutil + garantia de interação */
+[contenteditable="true"]{
+  outline:none;
+  border-bottom:1px dashed transparent;
+  transition:border-color .15s;
+  cursor:text;
+  user-select:text;
+  -webkit-user-select:text;
+  pointer-events:auto;       /* garante que nada bloqueia o clique */
+  position:relative;          /* cria stacking context próprio */
+  z-index:2;                  /* fica acima de pseudo-elementos do .slide */
+}
+[contenteditable="true"]:hover{ border-bottom-color:var(--blue-light); }
+[contenteditable="true"]:focus{ border-bottom-color:var(--orange); background:#fff8ee; }
+[contenteditable="false"]{ cursor:default; }
+.computed{ color:var(--navy); /* valor calculado, não editável */ user-select:text; }
+
+/* ============================================================
+   5. HEADER FIXO (navegação + botões)
+   ============================================================ */
+.deck-header{
+  position:fixed; top:0; left:0; right:0;
+  height:48px; background:var(--navy); color:#fff;
+  display:flex; align-items:center; padding:0 18px;
+  z-index:100;
+  font-size:13px;
+}
+.deck-header .title{ flex:1; font-weight:700; }
+.deck-header .nav{ display:flex; align-items:center; gap:8px; margin-right:24px; }
+.deck-header button{
+  background:transparent; color:#fff; border:1px solid rgba(255,255,255,.4);
+  padding:6px 12px; cursor:pointer; font-size:12px;
+  border-radius:3px; font-family:var(--font);
+}
+.deck-header button:hover{ background:rgba(255,255,255,.1); }
+.deck-header button.primary{ background:var(--orange); border-color:var(--orange); }
+.deck-header .counter{ font-variant-numeric:tabular-nums; min-width:60px; text-align:center; }
+
+body{ padding-top:48px; } /* compensa header fixo */
+
+/* ============================================================
+   6. MAPA-MESTRE — painel flutuante (drawer)
+   ============================================================ */
+.master-drawer{
+  position:fixed; top:48px; right:-100%;
+  width:720px; height:calc(100vh - 48px);
+  background:var(--paper); color:var(--navy);
+  box-shadow:-4px 0 24px rgba(0,0,0,.3);
+  transition:right .3s ease;
+  z-index:90;
+  overflow-y:auto;
+  padding:24px;
+}
+.master-drawer.open{ right:0; }
+.master-drawer h2{
+  margin:0 0 16px; font-size:18pt; color:var(--navy);
+  border-bottom:2px solid var(--navy); padding-bottom:8px;
+}
+.master-drawer .hint{ font-size:11pt; color:var(--grey-mid); margin-bottom:16px; }
+.master-drawer table{
+  width:100%; border-collapse:collapse;
+  font-size:11pt; color:var(--navy);
+}
+.master-drawer th, .master-drawer td{
+  padding:8px 10px; text-align:left;
+  border-bottom:1px solid var(--rule);
+}
+.master-drawer th{ background:var(--zebra); font-weight:700; }
+.master-drawer td.r{ text-align:right; font-variant-numeric:tabular-nums; }
+.toggle-3{ display:inline-flex; gap:2px; }
+.toggle-3 button{
+  padding:4px 10px; font-size:10pt;
+  background:#fff; color:var(--navy);
+  border:1px solid var(--rule);
+  cursor:pointer; font-family:var(--font);
+}
+.toggle-3 button.on[data-state="preliminar"]{ background:var(--grey-shade); color:var(--navy); border-color:var(--navy); }
+.toggle-3 button.on[data-state="adicional"]{ background:var(--orange); color:#fff; border-color:var(--orange); }
+.toggle-3 button.on[data-state="validada"]{ background:var(--green); color:#fff; border-color:var(--green); }
+.toggle-3 button:first-child{ border-radius:3px 0 0 3px; }
+.toggle-3 button:last-child{ border-radius:0 3px 3px 0; }
+
+.master-totals{
+  margin-top:24px; padding:16px;
+  background:var(--zebra); border-left:4px solid var(--navy);
+  font-size:11pt;
+}
+.master-totals .row{ display:flex; justify-content:space-between; padding:4px 0; }
+.master-totals .row strong{ font-weight:700; }
+
+/* ============================================================
+   7. LOGO Gradus — PNG real embutido (marca-positiva)
+   Fonte: gradus-consultant-frontend/assets/logos/logos-base64.js
+   ============================================================ */
+.logo-gradus{
+  display:inline-block;
+  height:26px; width:auto;
+  vertical-align:middle;
+}
+/* Esconde a imagem se ainda não tiver src real (evita ícone de "imagem quebrada"). */
+img.logo-gradus:not([src]),
+img.logo-gradus[src=""]{
+  display:none;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER FIXO — navegação + ações
+     ============================================================ -->
+<div class="deck-header">
+  <div class="title"><!-- GEN: DECK_TITLE --> Storyline Gradus</div>
+  <div class="nav">
+    <button id="btn-prev">← Anterior</button>
+    <span class="counter"><span id="cur">1</span> / <span id="total">1</span></span>
+    <button id="btn-next">Próximo →</button>
+  </div>
+  <div class="actions" style="display:flex; gap:8px;">
+    <button id="btn-master">Gerenciar análises</button>
+    <button id="btn-create-bubble">+ Bubble</button>
+    <button id="btn-save">Salvar HTML</button>
+    <button id="btn-reset">Resetar</button>
+    <button id="btn-export-json" class="primary">Exportar JSON</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     PALCO — slides com scale letterbox
+     ============================================================ -->
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+
+    <!-- ============================================================
+         PONTO DE INJEÇÃO: SLIDES
+         O gerador deve injetar <section class="slide" data-id="..."> blocos aqui
+         na ordem canônica: placar → buildup → (VGC + mapa + análises)×conta → OOI
+         Cada slide segue o esqueleto abaixo (comentado).
+         ============================================================ -->
+
+    <!-- EXEMPLO DE SLIDE 1 — PLACAR (template canonical: pacote-opportunity-summary)
+    <section class="slide active" data-id="placar-001" data-role="pacote-opportunity-summary">
+      <h1 class="lead" contenteditable="true">
+        {PACOTE CAPS} | Placar de oportunidades
+      </h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th rowspan="2">Conta OM</th>
+              <th rowspan="2" class="it">Baseline</th>
+              <th colspan="2" class="grp">Oportunidades validadas</th>
+              <th colspan="2" class="grp">Oportunidades adicionais</th>
+            </tr>
+            <tr>
+              <th>R$/ano</th><th>% Baseline</th>
+              <th>R$/ano</th><th>% Baseline</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td contenteditable="true">Conta 1</td>
+                <td class="computed">60,5</td>
+                <td class="computed">—</td><td class="computed">—</td>
+                <td class="computed">3,2</td><td class="computed">5,3%</td></tr>
+          </tbody>
+          <tfoot>
+            <tr class="total"><td>Total</td>
+                <td class="computed">60,5</td>
+                <td class="computed">—</td><td>—</td>
+                <td class="computed">3,2</td><td>5,3%</td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contábil jan/2024 a dez/2024</span>
+        <span class="pageno">1</span>
+        <span class="brand"><span class="logo-gradus"></span></span>
+      </footer>
+    </section>
+    -->
+
+    <!-- GEN: SLIDES — injete aqui -->
+    
+    <section class="slide active" data-id="placar-001" data-role="pacote-opportunity-summary">
+      <h1 class="lead" contenteditable="true">CONECTIVIDADE | Placar de oportunidades</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas">
+        <div class="canvas-tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr><th rowspan="2">Conta OM</th><th rowspan="2" class="it num">Baseline</th>
+                <th colspan="2" class="grp">Oportunidades validadas</th>
+                <th colspan="2" class="grp">Oportunidades adicionais</th></tr>
+              <tr><th class="num">Valor</th><th class="num">% Baseline</th><th class="num">Valor</th><th class="num">% Baseline</th></tr>
+            </thead>
+            <tbody>
+              <tr><td contenteditable="true">Rede Telefonia Terceira</td><td class="computed num">60,5</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td class="computed num">3,2</td><td class="computed num">5,3%</td></tr>
+              <tr><td contenteditable="true">Dados</td><td class="computed num">22,0</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td class="computed num">1,8</td><td class="computed num">8,2%</td></tr>
+            </tbody>
+            <tfoot><tr class="total"><td>Total</td><td class="computed num">82,5</td><td class="computed num">&mdash;</td><td class="num">&mdash;</td><td class="computed num">5,0</td><td class="num">6,1%</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">1</span></span>
+      </footer>
+    </section>
+
+    <section class="slide" data-id="buildup-001" data-role="buildup-pacote">
+      <h1 class="lead" contenteditable="true">CONECTIVIDADE | Detalhamento do pacote</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas" style="padding:30px 0 0;">
+        <!-- Container 810 centralizado: 90px reservados à esq pro label "% do pacote" -->
+        <div style="width:810px; margin:0 auto;">
+          <div style="position:relative; width:810px; height:400px;">
+            <!-- shade móvel atrás de Rede Telefonia Terceira (barras deslocadas +90) -->
+            <div style="position:absolute; left:78px; top:0; width:114px; height:400px; background:var(--grey-shade); z-index:0;"></div>
+
+            <!-- Bar 1: Rede 60,5 (left=90) -->
+            <div style="position:absolute; left:90px; bottom:0; width:90px; height:253px; background:var(--blue-light); z-index:1;"></div>
+            <div style="position:absolute; left:90px; bottom:258px; width:90px; text-align:center; font-weight:700; color:var(--navy); z-index:2;" contenteditable="true">60,5</div>
+
+            <div style="position:absolute; left:180px; bottom:253px; width:50px; border-top:1px dashed var(--navy); z-index:1;"></div>
+
+            <!-- Bar 2: Dados 22,0 (left=230) -->
+            <div style="position:absolute; left:230px; bottom:253px; width:90px; height:92px; background:var(--blue-light); z-index:1;"></div>
+            <div style="position:absolute; left:230px; bottom:350px; width:90px; text-align:center; font-weight:700; color:var(--navy); z-index:2;" contenteditable="true">22,0</div>
+
+            <div style="position:absolute; left:320px; bottom:345px; width:50px; border-top:1px dashed var(--navy); z-index:1;"></div>
+
+            <!-- Bar 3: Conectividade 8,5 (left=370) -->
+            <div style="position:absolute; left:370px; bottom:345px; width:90px; height:35px; background:var(--blue-light); z-index:1;"></div>
+            <div style="position:absolute; left:370px; bottom:385px; width:90px; text-align:center; font-weight:700; color:var(--navy); z-index:2;" contenteditable="true">8,5</div>
+
+            <div style="position:absolute; left:460px; bottom:380px; width:170px; border-top:1px dashed var(--navy); z-index:1;"></div>
+
+            <!-- Bar Total: 91,0 (left=630) -->
+            <div style="position:absolute; left:630px; bottom:0; width:90px; height:380px; background:var(--blue-light); z-index:1;"></div>
+            <div style="position:absolute; left:630px; bottom:385px; width:90px; text-align:center; font-weight:700; color:var(--navy); z-index:2;" contenteditable="true">91,0</div>
+          </div>
+
+          <div style="position:relative; height:48px; margin-top:8px;">
+            <div style="position:absolute; left:90px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy); line-height:1.2;" contenteditable="true">Rede<br>Telefonia<br>Terceira</div>
+            <div style="position:absolute; left:230px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy); line-height:1.2;" contenteditable="true">Dados</div>
+            <div style="position:absolute; left:370px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy); line-height:1.2;" contenteditable="true">Conectividade<br>Corporativa</div>
+            <div style="position:absolute; left:630px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy); line-height:1.2;" contenteditable="true">Total</div>
+          </div>
+
+          <div style="position:relative; margin-top:16px; height:24px;">
+            <div style="position:absolute; left:0; top:0; width:80px; font-size:10pt; font-weight:700; color:var(--navy);" class="it" contenteditable="true">% do pacote</div>
+            <div style="position:absolute; left:90px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy);" contenteditable="true">66,5%</div>
+            <div style="position:absolute; left:230px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy);" contenteditable="true">24,2%</div>
+            <div style="position:absolute; left:370px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy);" contenteditable="true">9,3%</div>
+            <div style="position:absolute; left:630px; top:0; width:90px; text-align:center; font-size:10pt; color:var(--navy);" contenteditable="true">100%</div>
+          </div>
+        </div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">2</span></span>
+      </footer>
+    </section>
+
+    <section class="slide" data-id="mapa-001" data-role="mapa-de-analises">
+      <h1 class="lead" contenteditable="true">REDE TELEFONIA TERCEIRA | Mapa de análises (R$ MM/ano)</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas">
+        <div class="canvas-tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr><th rowspan="2">Natureza do gasto</th><th rowspan="2" class="it num">Baseline</th>
+                <th colspan="2" class="grp">Oportunidade</th>
+                <th rowspan="2">Fator</th><th rowspan="2">Análises</th></tr>
+              <tr><th class="num">Validada</th><th class="num">Adicional</th></tr>
+            </thead>
+            <tbody>
+              <tr><td contenteditable="true">Telefonia móvel</td><td class="computed num">38,0</td><td class="computed num">&mdash;</td><td class="computed num">3,2</td><td contenteditable="true">Preço</td><td contenteditable="true">Comparação R$/min por cluster</td></tr>
+              <tr><td contenteditable="true">Interurbana</td><td class="computed num">14,5</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td contenteditable="true">Consumo</td><td contenteditable="true">Sem oportunidade</td></tr>
+              <tr><td contenteditable="true">Local</td><td class="computed num">8,0</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td contenteditable="true">Total</td><td contenteditable="true">Sem oportunidade</td></tr>
+            </tbody>
+            <tfoot><tr class="total"><td>Total</td><td class="computed num">60,5</td><td class="computed num">&mdash;</td><td class="computed num">3,2</td><td>&mdash;</td><td>&mdash;</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024; análise sobre Base SAP-CO 2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">3</span></span>
+      </footer>
+    </section>
+
+    <section class="slide" data-id="analise-001" data-role="análise" data-analysis-id="a1">
+      <span class="badge" data-badge="PRELIMINAR">PRELIMINAR</span>
+      <h1 class="lead" contenteditable="true">A oportunidade concentra-se em renegociação tarifária com tres operadoras, valendo R$ 3,2 MM/ano</h1>
+      <div class="subhead" contenteditable="true">REDE TELEFONIA TERCEIRA · R$ MM/ano</div>
+      <div class="canvas" style="padding-top:24px;">
+        <p contenteditable="true" style="max-width:760px;">"+ Bubble" cria bubble navy. Duplo clique edita. Click 1x seleciona. Delete remove. Arraste pra mover.</p>
+        <div class="callout-opp bubble" style="left:1000px; top:240px;">Oportunidade<br>R$ 3,2 MM (5,3%)</div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024; análise sobre Base SAP-CO 2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">4</span></span>
+      </footer>
+    </section>
+
+
+  </div>
+</div>
+
+<!-- ============================================================
+     MAPA-MESTRE — drawer flutuante (controle de classificação)
+     ============================================================ -->
+<div class="master-drawer" id="master-drawer">
+  <h2>Mapa-mestre de análises do pacote</h2>
+  <p class="hint">
+    Toda análise nasce como <strong>Preliminar</strong> e tem valor real calculado no slide.
+    Para entrar no placar e nos mapas-de-análises por conta, promova para <strong>Adicional</strong> ou <strong>Validada</strong>.
+    Preliminares contam como R$ 0 nos agregados.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Análise</th><th>Conta OM</th><th class="r">R$ calculado</th><th>Estado</th></tr>
+    </thead>
+    <tbody id="master-tbody">
+      <!-- GEN: MASTER_ROWS — injetar uma linha por análise:
+      <tr data-analysis-id="analise-001">
+        <td>Comparação R$/min por cluster</td>
+        <td>Rede Telefonia Terceira</td>
+        <td class="r">R$ 3,2 MM</td>
+        <td>
+          <div class="toggle-3" data-analysis-id="analise-001">
+            <button data-state="preliminar" class="on">Preliminar</button>
+            <button data-state="adicional">Adicional</button>
+            <button data-state="validada">Validada</button>
+          </div>
+        </td>
+      </tr>
+      -->
+      
+      <tr data-analysis-id="a1"><td>Comparação R$/min por cluster</td><td>Rede Telefonia Terceira</td><td class="r">R$ 3,2 MM</td>
+        <td><div class="toggle-3" data-analysis-id="a1">
+          <button data-state="preliminar" class="on">Preliminar</button>
+          <button data-state="adicional">Adicional</button>
+          <button data-state="validada">Validada</button>
+        </div></td>
+      </tr>
+
+    </tbody>
+  </table>
+  <div class="master-totals" id="master-totals">
+    <div class="row"><span>Total Validadas:</span> <strong id="tot-validada">R$ 0,0 MM</strong></div>
+    <div class="row"><span>Total Adicionais:</span> <strong id="tot-adicional">R$ 0,0 MM</strong></div>
+    <div class="row" style="color:var(--grey-mid);"><span>Preliminares (fora do placar):</span> <strong id="tot-preliminar">R$ 0,0 MM</strong></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   7b. LOGO BASE64 — PNG marca-positiva da Gradus (skill irmã)
+   ============================================================ */
+const GRADUS_LOGO_DATA_URL = "data:image/png;base64,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"; // GEN: substituir pela data URL real do logo Gradus (PNG base64). Ver /assets/logos/
+
+function applyLogos(){
+  if(!GRADUS_LOGO_DATA_URL) return; // sem logo configurado ainda
+  document.querySelectorAll('img.logo-gradus').forEach(img => {
+    if(!img.src || img.src.length < 100) img.src = GRADUS_LOGO_DATA_URL;
+  });
+}
+
+/* ============================================================
+   8. ESTADO E PERSISTÊNCIA
+   ============================================================ */
+const STATE = {
+  meta: { /* GEN: META — cliente, pacote, tema */ },
+  slides: [],   /* GEN: SLIDES_JSON — array de slides com role/leadTitle/elements/params */
+  analyses: [{id:"a1", name:"Comparação R$/min por cluster", conta:"Rede Telefonia Terceira", value:3.2, state:"preliminar"}], /* GEN: ANALYSES_JSON — array de análises pro mapa-mestre */
+  textOverrides: {},
+  currentSlide: 0
+};
+
+const LS_KEY = 'gradus-storyline-' + (location.pathname.split('/').pop() || 'default');
+
+function loadState(){
+  try{
+    const saved = localStorage.getItem(LS_KEY);
+    if(saved){
+      const parsed = JSON.parse(saved);
+      Object.assign(STATE, parsed);
+      return true;
+    }
+  }catch(e){ console.warn('Falha ao carregar state:', e); }
+  return false;
+}
+
+let saveTimer = null;
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify(STATE));
+    }catch(e){ console.warn('Falha ao salvar:', e); }
+  }, 500); // debounce 500ms
+}
+
+function resetState(){
+  if(!confirm('Resetar todas as edições para o original? Esta ação não pode ser desfeita.')) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+/* ============================================================
+   9. SCALE LETTERBOX — palco 1280×720 cabe na viewport
+   ============================================================ */
+function applyScale(){
+  const stage = document.getElementById('stage');
+  const wrap  = stage.parentElement;
+  const availW = wrap.clientWidth;
+  const availH = wrap.clientHeight;
+  const scale = Math.min(availW / 1280, availH / 720);
+  // scaled dimensions
+  const scaledW = 1280 * scale;
+  const scaledH = 720 * scale;
+  // offset pra centralizar
+  const offsetX = (availW - scaledW) / 2;
+  const offsetY = (availH - scaledH) / 2;
+  // ordem importa: translate primeiro, depois scale (com origin top-left)
+  stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+window.addEventListener('resize', applyScale);
+
+/* ============================================================
+   10. NAVEGAÇÃO ENTRE SLIDES
+   ============================================================ */
+function getSlides(){ return document.querySelectorAll('.slide'); }
+
+function showSlide(idx){
+  const slides = getSlides();
+  if(idx < 0) idx = 0;
+  if(idx >= slides.length) idx = slides.length - 1;
+  slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+  STATE.currentSlide = idx;
+  document.getElementById('cur').textContent = idx + 1;
+  document.getElementById('total').textContent = slides.length;
+  saveState();
+}
+
+document.addEventListener('keydown', (e) => {
+  if(document.activeElement && document.activeElement.isContentEditable) return;
+  if(e.key === 'ArrowRight' || e.key === 'PageDown') showSlide(STATE.currentSlide + 1);
+  if(e.key === 'ArrowLeft'  || e.key === 'PageUp')   showSlide(STATE.currentSlide - 1);
+});
+
+/* botões prev/next bindados dentro de init() — ver §16 */
+
+/* ============================================================
+   11. EDIÇÃO INLINE — captura mudanças em [contenteditable]
+   ============================================================ */
+function bindEditable(){
+  document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+    if(el.dataset.bound) return;
+    el.dataset.bound = '1';
+    const slide = el.closest('.slide');
+    const sid = slide?.dataset.id || 'unknown';
+    const key = `${sid}::${el.dataset.field || el.tagName + '-' + Array.from(slide.querySelectorAll('[contenteditable]')).indexOf(el)}`;
+
+    // restaura override se houver
+    if(STATE.textOverrides[key] !== undefined){
+      el.textContent = STATE.textOverrides[key];
+    }
+
+    el.addEventListener('input', () => {
+      STATE.textOverrides[key] = el.textContent;
+      saveState();
+      checkOverflow(slide);
+    });
+
+    el.addEventListener('blur', () => {
+      el.scrollLeft = 0;
+    });
+  });
+}
+
+/* ============================================================
+   11b. DRAG-AND-DROP — bubbles de oportunidade (callout-opp)
+   ============================================================ */
+function bindDraggable(){
+  document.querySelectorAll('.callout-opp').forEach(el => {
+    if(el.dataset.draggableBound) return;
+    el.dataset.draggableBound = '1';
+    const slide = el.closest('.slide');
+    const sid = slide?.dataset.id || 'unknown';
+    // chave persistente da posição do bubble
+    const idx = Array.from(slide.querySelectorAll('.callout-opp')).indexOf(el);
+    const posKey = `${sid}::callout-pos-${idx}`;
+
+    // restaura posição salva
+    const saved = STATE.textOverrides[posKey];
+    if(saved){
+      try{
+        const {left, top} = JSON.parse(saved);
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+      }catch(e){}
+    }
+
+    el.addEventListener('mousedown', (e) => {
+      if(e.target !== el && e.target.isContentEditable) return;
+      // se clicou no resize handle (canto inferior direito ~16px), não inicia drag
+      // deixa o resize nativo do CSS funcionar
+      const rect = el.getBoundingClientRect();
+      const inResizeCorner = (rect.right - e.clientX < 16) && (rect.bottom - e.clientY < 16);
+      if(inResizeCorner) return;
+      e.preventDefault();
+      el.classList.add('dragging');
+
+      const stage = document.getElementById('stage');
+      const stageRect = stage.getBoundingClientRect();
+      const scale = stageRect.width / 1280;
+
+      // posição inicial do bubble no palco (coords não-escaladas)
+      // pega da style atual OU do offsetLeft/offsetTop (que já estão em coords do palco)
+      let startLeft = parseFloat(el.style.left);
+      let startTop = parseFloat(el.style.top);
+      if(isNaN(startLeft)) startLeft = el.offsetLeft;
+      if(isNaN(startTop)) startTop = el.offsetTop;
+
+      // posição inicial do mouse em coords de tela
+      const startMouseX = e.clientX;
+      const startMouseY = e.clientY;
+
+      function onMove(ev){
+        // delta do mouse em coords de tela → converter pra coords do palco dividindo por scale
+        const dxStage = (ev.clientX - startMouseX) / scale;
+        const dyStage = (ev.clientY - startMouseY) / scale;
+        const w = el.offsetWidth, h = el.offsetHeight;
+        const x = Math.max(0, Math.min(1280 - w, startLeft + dxStage));
+        const y = Math.max(0, Math.min(720 - h, startTop + dyStage));
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+      }
+
+      function onUp(){
+        el.classList.remove('dragging');
+        const x = parseFloat(el.style.left) || 0;
+        const y = parseFloat(el.style.top) || 0;
+        STATE.textOverrides[posKey] = JSON.stringify({left: x, top: y});
+        saveState();
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+/* ============================================================
+   11c. CRIAR BUBBLE CUSTOM — cor navy, draggável, resizível, texto editável
+   ============================================================ */
+let bubbleCounter = 0;
+function createBubble(){
+  // identifica o slide ativo
+  const slide = document.querySelector('.slide.active');
+  if(!slide){
+    alert('Nenhum slide ativo.');
+    return;
+  }
+  // canvas onde o bubble vai entrar (preferencial) ou direto no slide
+  const canvas = slide.querySelector('.canvas') || slide;
+  // posição inicial: centro aproximado
+  const left = 540, top = 280;
+  bubbleCounter += 1;
+  const id = `custom-bubble-${Date.now()}-${bubbleCounter}`;
+
+  const div = document.createElement('div');
+  div.className = 'callout-opp custom-navy';
+  div.id = id;
+  div.style.left = left + 'px';
+  div.style.top = top + 'px';
+  div.style.width = '182px';
+  div.style.height = '86px';
+  div.dataset.customBubble = '1'; // marca pra identificar bubbles removíveis
+
+  // estrutura interna: span do texto + botão X
+  const textSpan = document.createElement('span');
+  textSpan.className = 'bubble-text';
+  textSpan.textContent = 'Texto livre…';
+  div.appendChild(textSpan);
+
+  const xBtn = document.createElement('div');
+  xBtn.className = 'bubble-delete';
+  xBtn.textContent = '×';
+  xBtn.title = 'Remover bubble';
+  xBtn.addEventListener('mousedown', (ev) => ev.stopPropagation()); // não dispara drag
+  xBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    div.remove();
+    // limpa overrides associados
+    Object.keys(STATE.textOverrides).forEach(k => {
+      if(k.startsWith(id + '::')) delete STATE.textOverrides[k];
+    });
+    saveState();
+  });
+  div.appendChild(xBtn);
+
+  div.setAttribute('contenteditable', 'false');
+  canvas.appendChild(div);
+
+  // selecionar bubble ao clicar (mostra o X e habilita Delete via teclado)
+  div.addEventListener('mousedown', (e) => {
+    document.querySelectorAll('.callout-opp.custom-navy.selected').forEach(b => b.classList.remove('selected'));
+    div.classList.add('selected');
+  });
+
+  // double-click → entra em modo edição (no textSpan, não no div inteiro)
+  div.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    div.classList.add('editing');
+    textSpan.setAttribute('contenteditable', 'true');
+    textSpan.focus();
+    const range = document.createRange();
+    range.selectNodeContents(textSpan);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+
+  // blur do texto → sai do modo edição e salva
+  textSpan.addEventListener('blur', () => {
+    div.classList.remove('editing');
+    textSpan.setAttribute('contenteditable', 'false');
+    const key = `${id}::text`;
+    STATE.textOverrides[key] = textSpan.textContent;
+    saveState();
+  });
+
+  bindDraggable();
+
+  setTimeout(() => {
+    div.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  }, 50);
+}
+
+// tecla Delete/Backspace remove bubble selecionado
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Delete' && e.key !== 'Backspace') return;
+  // se está editando texto em qualquer lugar, não remove
+  if(document.activeElement && document.activeElement.isContentEditable) return;
+  const selected = document.querySelector('.callout-opp.custom-navy.selected');
+  if(selected){
+    e.preventDefault();
+    const id = selected.id;
+    selected.remove();
+    Object.keys(STATE.textOverrides).forEach(k => {
+      if(k.startsWith(id + '::')) delete STATE.textOverrides[k];
+    });
+    saveState();
+  }
+});
+
+// click fora do bubble → deseleciona
+document.addEventListener('mousedown', (e) => {
+  if(!e.target.closest('.callout-opp.custom-navy')){
+    document.querySelectorAll('.callout-opp.custom-navy.selected').forEach(b => b.classList.remove('selected'));
+  }
+});
+
+/* ============================================================
+   12. GUARD DE OVERFLOW — sinaliza se conteúdo extrapola 720px
+   ============================================================ */
+function checkOverflow(slide){
+  if(!slide) return;
+  // tolerância de 2px (arredondamento de subpixel em browsers diferentes)
+  const overflow = slide.scrollHeight > 722;
+  slide.style.outline = overflow ? '3px solid var(--red)' : '';
+  if(overflow){
+    console.warn(`Overflow no slide ${slide.dataset.id}: scrollHeight=${slide.scrollHeight}`);
+  }
+}
+
+/* ============================================================
+   13. MAPA-MESTRE — drawer + toggle 3 estados
+   ============================================================ */
+/* drawer e btn-master bindados em init() */
+let drawer;
+
+function renderMaster(){
+  // calcula totais
+  let tV = 0, tA = 0, tP = 0;
+  STATE.analyses.forEach(a => {
+    const v = parseFloat(a.value) || 0;
+    if(a.state === 'validada') tV += v;
+    else if(a.state === 'adicional') tA += v;
+    else tP += v;
+  });
+  const fmt = n => `R$ ${n.toFixed(1).replace('.', ',')} MM`;
+  document.getElementById('tot-validada').textContent = fmt(tV);
+  document.getElementById('tot-adicional').textContent = fmt(tA);
+  document.getElementById('tot-preliminar').textContent = fmt(tP);
+
+  // re-render do estado dos botões
+  document.querySelectorAll('.toggle-3').forEach(tg => {
+    const aid = tg.dataset.analysisId;
+    const analysis = STATE.analyses.find(a => a.id === aid);
+    if(!analysis) return;
+    tg.querySelectorAll('button').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.state === analysis.state);
+    });
+  });
+}
+
+// click handler para toggle (event delegation)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.toggle-3 button');
+  if(!btn) return;
+  const tg = btn.closest('.toggle-3');
+  const aid = tg.dataset.analysisId;
+  const newState = btn.dataset.state;
+
+  const analysis = STATE.analyses.find(a => a.id === aid);
+  if(!analysis) return;
+
+  analysis.state = newState;
+  saveState();
+  renderMaster();
+  propagateClassification(aid, newState);
+});
+
+function propagateClassification(analysisId, state){
+  // 1. Liga/desliga badge PRELIMINAR no slide individual
+  const slide = document.querySelector(`.slide[data-analysis-id="${analysisId}"]`);
+  if(slide){
+    const badge = slide.querySelector('.badge[data-badge="PRELIMINAR"]');
+    if(badge) badge.classList.toggle('hidden', state !== 'preliminar');
+  }
+
+  // 2. Atualiza linha no mapa-de-análises por conta (R$ aparece/some)
+  document.querySelectorAll(`[data-mapa-row-analysis="${analysisId}"]`).forEach(row => {
+    const valCell = row.querySelector('.r-valor');
+    if(!valCell) return;
+    const analysis = STATE.analyses.find(a => a.id === analysisId);
+    if(state === 'preliminar'){
+      valCell.textContent = '—'; // ou R$ 0,0 — convenção: linha continua, mas valor não soma
+    } else {
+      valCell.textContent = `R$ ${parseFloat(analysis.value).toFixed(1).replace('.', ',')} MM`;
+    }
+  });
+  rerenderPlacar();
+}
+
+function rerenderPlacar(){
+  console.log('[placar] re-render triggered');
+}
+
+function exportJSON(){
+  const json = JSON.stringify(STATE, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `storyline-state-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function saveAsHTML(){
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `storyline-${Date.now()}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function init(){
+  try {
+    loadState();
+    applyLogos();
+    applyScale();
+    bindEditable();
+    bindDraggable();
+
+    drawer = document.getElementById('master-drawer');
+    document.getElementById('btn-prev').addEventListener('click', () => showSlide(STATE.currentSlide - 1));
+    document.getElementById('btn-next').addEventListener('click', () => showSlide(STATE.currentSlide + 1));
+    document.getElementById('btn-master').addEventListener('click', () => {
+      drawer.classList.toggle('open');
+      renderMaster();
+    });
+    document.getElementById('btn-export-json').addEventListener('click', exportJSON);
+    document.getElementById('btn-save').addEventListener('click', saveAsHTML);
+    document.getElementById('btn-reset').addEventListener('click', resetState);
+    document.getElementById('btn-create-bubble').addEventListener('click', createBubble);
+
+    renderMaster();
+    showSlide(STATE.currentSlide || 0);
+    getSlides().forEach(s => checkOverflow(s));
+  } catch(e) {
+    console.error('[init] erro:', e);
+    alert('Erro na inicialização do deck: ' + e.message);
+  }
+}
+window.addEventListener('load', init);
+</script>
+
+</body>
+</html>

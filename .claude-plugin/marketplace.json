@@ -16,6 +16,12 @@
       "version": "1.0.0"
     },
     {
+      "name": "gradus-analysis-storyline",
+      "source": "./plugins/gradus-analysis-storyline",
+      "description": "Orquestra a construção iterativa de decks de análise no padrão de Validação de Diretrizes Orçamentárias da Gradus — placar de oportunidades + buildup + visão geral da conta + mapa de análises + análises + iniciativas (OOI). ACIONE ESTA SKILL SOMENTE quando o consultor invocar explicitamente com o comando /gradus-analysis-storyline. NÃO acione por inferência de contexto, nem por palavras-chave no chat, nem quando o consultor subir um material sem usar o comando. A invocação deve ser sempre intencional e explícita.",
+      "version": "1.0.0"
+    },
+    {
       "name": "gradus-explore",
       "source": "./plugins/gradus-explore",
       "description": "Perfil/EDA inicial de uma base (parquet/CSV via DuckDB) + ficha no catálogo.",

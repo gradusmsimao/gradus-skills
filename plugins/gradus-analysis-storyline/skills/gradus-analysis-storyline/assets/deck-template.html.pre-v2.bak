@@ -1,0 +1,1706 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title><!-- GEN: TITLE --></title>
+
+<!-- ============================================================
+     ESQUELETO DECK-MODE GRADUS — referenciado por SKILL.md
+     1 slide = 1 .slide 16:9 (1280×720) com transform:scale() pra letterbox
+     Edição inline + localStorage + mapa-mestre flutuante
+     Pontos de injeção marcados com "GEN: ..."
+     ============================================================ -->
+
+<!-- Chart.js 4.4.1 via CDN (fallback offline: embutir em produção) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+
+<style>
+/* ============================================================
+   1. TOKENS GRADUS NOVA — fonte: design-tokens-per-template.md §0
+   ============================================================ */
+:root{
+  /* cor — tema oficial */
+  --navy:        #002060;
+  --navy-2:      #12376C;
+  --blue:        #306F9F;
+  --blue-light:  #9DB1CF;
+  --blue-light2: #C9D5E6;
+  --orange:      #E68E18;
+  --amber:       #FFC000;
+  --red:         #C00000;
+  --green:       #70AD47;
+  --maroon:      #800000;
+  --grey-shade:  #D9D9D9;
+  --grey-mid:    #A5A5A5;
+  --zebra:       #F2F2F2;
+  --rule:        #9DB1CF;
+  --ink:         #002060;
+  --paper:       #FFFFFF;
+  /* tipografia */
+  --font: "Gadugi", "Segoe UI", Arial, sans-serif;
+  --fs-lead: 20pt; --fs-sub: 13pt; --fs-body: 11pt; --fs-small: 9pt;
+  /* geometria (fração do canvas 1280×720) */
+  --pad-x: 1.4%;
+  --title-h: 10%;
+  --rule-y: 11.7%;
+  --util-top: 12.2%; --util-bottom: 84%;
+  --footer-y: 96.3%;
+}
+
+/* ============================================================
+   2. SCAFFOLD — palco fixo + scale letterbox (no-scroll 16:9)
+   ============================================================ */
+*{ box-sizing:border-box; }
+html, body{
+  margin:0; padding:0;
+  width:100%; height:100vh;
+  background:#1a1a1a;
+  font-family:var(--font);
+  overflow:hidden;
+}
+.stage-wrap{
+  width:100vw; height:calc(100vh - 48px);
+  position:relative;
+  overflow:hidden;
+}
+.stage{
+  width:1280px; height:720px;
+  background:var(--paper);
+  position:absolute;
+  top:0; left:0;
+  transform-origin:top left;
+  box-shadow:0 8px 32px rgba(0,0,0,.4);
+}
+/* JS faz o scale dinâmico + centralização via translate no resize.
+   IMPORTANTE: transform-origin = top left. A centralização vem via
+   translate dentro do mesmo transform (não via flex), pra eventos
+   de click ficarem alinhados com a escala. */
+
+/* ============================================================
+   3. SLIDE BASE
+   ============================================================ */
+.slide{
+  position:absolute; inset:0;
+  color:var(--ink);
+  display:none;
+  /* Métricas extraídas do slideLayout2.xml do PPTX oficial:
+     - title: x=18, y=5.6, w=1242, h=71.9 (até y=77.5)
+     - régua = bottom do title em y=82.1 (faixa azul de 4-5px)
+     - subtítulo: x=18, y=82.1, w=1242, h=57.3
+     - footer: x=0, y=693, w=1245, h=27.2 (FULL WIDTH, sem recuo lateral)
+     - PRELIMINAR: x=1129, w=151, alinhado ao bottom (fica abaixo da régua) */
+}
+.slide.active{ display:block; }
+
+/* Lead title — posição exata definida pelo usuário */
+.slide .lead{
+  position:absolute; left:12px; top:2px;
+  width:1252px;
+  height:70px;
+  font-size:18pt; font-weight:700; color:var(--navy);
+  line-height:1.18;
+  overflow:hidden;
+}
+.slide .lead .it{ font-style:italic; }
+
+/* Régua azul grossa — shape do slideMaster: x=0, y=79.5, w=1280, h=5.3
+   Vai de borda a borda do slide, fora das caixas de título/subhead. */
+.slide::before{
+  content:""; position:absolute;
+  left:0; right:0; top:79px;
+  height:5px; background:var(--navy);
+  pointer-events:none;
+  z-index:1;
+}
+
+/* Subhead — posição exata definida pelo usuário */
+.slide .subhead{
+  position:absolute; left:12px; top:84px;
+  width:1252px; height:57px;
+  font-size:var(--fs-sub); font-weight:700; color:var(--navy);
+  letter-spacing:.3px;
+  padding-top:8px; /* gap visual entre régua e primeira letra do subhead */
+}
+
+/* Canvas: começa abaixo do subhead (y=82+57=139), termina antes do footer (y=693) */
+.slide .canvas{
+  position:absolute; left:18px; right:18px;
+  top:145px; bottom:38px;
+}
+
+/* Rodapé — full width (x=0, w=1245), como no PPTX.
+   top ajustado pra acomodar logo de 26px sem estourar 720. */
+.slide .foot{
+  position:absolute; left:0; right:0; top:688px;
+  height:32px;
+  display:flex; justify-content:space-between; align-items:center;
+  font-size:var(--fs-small);
+  border-top:1px solid var(--grey-mid);
+  padding:4px 18px 0;
+  box-sizing:border-box;
+  overflow:hidden;
+}
+.slide .foot .src{
+  flex:1; color:var(--navy); /* fonte é AZUL, não cinza */
+  padding-left:18px; /* dá um "tab" à esquerda (recuo do texto da fonte) */
+}
+.slide .foot .right{ display:flex; align-items:center; gap:14px; }
+.slide .foot .pageno{
+  color:var(--navy);
+  font-variant-numeric:tabular-nums;
+}
+.slide .foot .brand{ display:flex; align-items:center; }
+
+/* ============================================================
+   4. COMPONENTES TRANSVERSAIS
+   ============================================================ */
+
+/* chevron de conta OM */
+.chevron{
+  display:inline-block; background:var(--navy); color:#fff;
+  font-weight:700; font-size:var(--fs-small);
+  padding:3px 18px 3px 10px;
+  clip-path:polygon(0 0,calc(100% - 12px) 0,100% 50%,calc(100% - 12px) 100%,0 100%);
+}
+.breadcrumb{ display:flex; gap:4px; margin-top:1%; }
+
+/* badge de função (5 canônicos) — ABAIXO da régua, alinhado à direita.
+   Tem faixa navy ACIMA e ABAIXO do texto (sublinhado em cima e embaixo). */
+.badge{
+  position:absolute; top:115px; right:18px;
+  font-weight:700; font-size:var(--fs-small);
+  color:var(--navy);
+  border-top:2px solid var(--navy);
+  border-bottom:2px solid var(--navy);
+  letter-spacing:.5px; text-transform:uppercase;
+  padding:2px 0;
+  z-index:5;
+}
+.badge.hidden{ display:none; }
+
+/* callout de oportunidade — DEFAULT é elipse achatada (bubble) draggável.
+   Dimensão padrão extraída do PPTX: w=182, h=86 (ratio w/h ≈ 2,11:1). */
+.callout-opp{
+  position:absolute; background:var(--maroon); color:#fff;
+  font-weight:700; text-align:center;
+  padding:10px 20px; line-height:1.25;
+  font-size:var(--fs-body);
+  width:182px; height:86px;
+  border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  box-sizing:border-box;
+  cursor:move;             /* indica que é draggável */
+  user-select:none;        /* não selecionar texto ao arrastar */
+  z-index:3;
+}
+.callout-opp.dragging{ opacity:.85; box-shadow:0 4px 12px rgba(0,0,0,.3); }
+.callout-opp.bubble{ border-radius:50%; }
+.callout-opp.rect{ border-radius:10px; }
+.bubble-text{ display:inline-block; outline:none; }
+
+/* bubble custom criado pelo botão "+ Bubble" — cor navy (#002060) em vez de bordô */
+.callout-opp.custom-navy{
+  background:var(--navy);
+  /* CSS resize nativo: handle aparece no canto inferior direito */
+  resize:both;
+  overflow:auto;
+  min-width:80px; min-height:40px;
+}
+.callout-opp.custom-navy::-webkit-resizer{
+  background:rgba(255,255,255,.3);
+}
+/* modo edição: cursor de texto + outline visível + permite seleção */
+.callout-opp.custom-navy.editing{
+  cursor:text;
+  user-select:text;
+  -webkit-user-select:text;
+  outline:2px dashed var(--orange);
+  outline-offset:2px;
+}
+/* botão de remover (X) — aparece no hover ou quando o bubble está focado */
+.bubble-delete{
+  position:absolute; top:-10px; right:-10px;
+  width:22px; height:22px;
+  background:var(--red); color:#fff;
+  border-radius:50%; border:2px solid #fff;
+  font-size:13px; font-weight:700; line-height:1;
+  cursor:pointer;
+  display:none;
+  align-items:center; justify-content:center;
+  z-index:10;
+  box-shadow:0 1px 4px rgba(0,0,0,.3);
+}
+.bubble-delete:hover{ background:#a00000; }
+.callout-opp.custom-navy:hover .bubble-delete,
+.callout-opp.custom-navy.editing .bubble-delete,
+.callout-opp.custom-navy.selected .bubble-delete{
+  display:flex;
+}
+.callout-opp.custom-navy.selected{
+  outline:2px solid var(--orange);
+  outline-offset:2px;
+}
+
+/* veredito "Sem Oportunidade" */
+.verdict-none{
+  position:absolute; top:60px; right:80px;
+  background:var(--maroon); color:#fff;
+  font-weight:700; padding:14px 22px;
+  border-radius:50%/45%;
+  font-size:var(--fs-body);
+}
+
+/* linha de referência (meta/mediana) */
+.ref-line{
+  position:absolute; left:0; right:0; height:2px;
+  background:var(--red);
+}
+.ref-line.dashed{
+  background:repeating-linear-gradient(90deg,var(--red) 0 8px,transparent 8px 14px);
+}
+
+/* tabela padrão — largura proporcional ao conteúdo, centralizada no canvas.
+   Bordas POR CÉLULA (não pela linha) — emula caixas de texto independentes do PPTX,
+   com gap horizontal entre colunas (border-spacing). */
+.tbl{
+  width:auto; max-width:100%;
+  margin:0 auto;
+  border-collapse:separate;        /* permite gap entre colunas */
+  border-spacing:14px 0;            /* gap horizontal de 14px, sem vertical */
+  font-size:var(--fs-body); color:var(--navy);
+}
+.tbl-full{ width:100%; }
+.tbl th{ font-weight:700; text-align:left; padding:4px 6px; white-space:nowrap; vertical-align:bottom; }
+.tbl th.grp{ border-bottom:1px solid var(--navy); text-align:left; }
+/* th com rowspan: border-bottom alinhado com a régua das colunas da direita */
+.tbl thead th[rowspan]{ border-bottom:1px solid var(--navy); }
+.tbl td{ text-align:left; padding:4px 6px; white-space:nowrap; }
+/* colunas numéricas: alinhar à direita explicitamente via class .num */
+.tbl th.num, .tbl td.num{ text-align:right; }
+.tbl th.center, .tbl td.center{ text-align:center; }
+/* régua inferior do cabeçalho — POR CÉLULA, navy, com gap natural entre colunas */
+.tbl thead tr:last-child th{ border-bottom:1px solid var(--navy); }
+.tbl .it{ font-style:italic; }
+/* régua sobre Total — POR CÉLULA, navy */
+.tbl tfoot .total td{ font-weight:700; border-top:1px solid var(--navy); }
+.tbl tr.zebra{ background:var(--zebra); }
+/* subtotais (resumoGeral) — régua navy sobre a linha de subtotal */
+.tbl tr.subtotal td{ font-weight:700; border-top:1px solid var(--navy); }
+.canvas-tbl-wrap{ width:100%; height:100%; display:flex; align-items:flex-start; justify-content:center; }
+
+/* shade móvel (buildup / mapa) */
+.shade{
+  position:absolute; background:var(--grey-shade);
+  z-index:0;
+  pointer-events:none;
+}
+
+/* contenteditable — feedback visual sutil + garantia de interação */
+[contenteditable="true"]{
+  outline:none;
+  border-bottom:1px dashed transparent;
+  transition:border-color .15s;
+  cursor:text;
+  user-select:text;
+  -webkit-user-select:text;
+  pointer-events:auto;       /* garante que nada bloqueia o clique */
+  position:relative;          /* cria stacking context próprio */
+  z-index:2;                  /* fica acima de pseudo-elementos do .slide */
+}
+[contenteditable="true"]:hover{ border-bottom-color:var(--blue-light); }
+[contenteditable="true"]:focus{ border-bottom-color:var(--orange); background:#fff8ee; }
+[contenteditable="false"]{ cursor:default; }
+.computed{ color:var(--navy); /* valor calculado, não editável */ user-select:text; }
+
+/* ============================================================
+   5. HEADER FIXO (navegação + botões)
+   ============================================================ */
+.deck-header{
+  position:fixed; top:0; left:0; right:0;
+  height:48px; background:var(--navy); color:#fff;
+  display:flex; align-items:center; padding:0 18px;
+  z-index:100;
+  font-size:13px;
+}
+.deck-header .title{ flex:1; font-weight:700; }
+.deck-header .nav{ display:flex; align-items:center; gap:8px; margin-right:24px; }
+.deck-header button{
+  background:transparent; color:#fff; border:1px solid rgba(255,255,255,.4);
+  padding:6px 12px; cursor:pointer; font-size:12px;
+  border-radius:3px; font-family:var(--font);
+}
+.deck-header button:hover{ background:rgba(255,255,255,.1); }
+.deck-header button.primary{ background:var(--orange); border-color:var(--orange); }
+.deck-header .counter{ font-variant-numeric:tabular-nums; min-width:60px; text-align:center; }
+
+body{ padding-top:48px; } /* compensa header fixo */
+
+/* ============================================================
+   6. MAPA-MESTRE — painel flutuante (drawer)
+   ============================================================ */
+.master-drawer{
+  position:fixed; top:48px; right:-100%;
+  width:720px; height:calc(100vh - 48px);
+  background:var(--paper); color:var(--navy);
+  box-shadow:-4px 0 24px rgba(0,0,0,.3);
+  transition:right .3s ease;
+  z-index:90;
+  overflow-y:auto;
+  padding:24px;
+}
+.master-drawer.open{ right:0; }
+.master-drawer h2{
+  margin:0 0 16px; font-size:18pt; color:var(--navy);
+  border-bottom:2px solid var(--navy); padding-bottom:8px;
+}
+.master-drawer .hint{ font-size:11pt; color:var(--grey-mid); margin-bottom:16px; }
+.master-drawer table{
+  width:100%; border-collapse:collapse;
+  font-size:11pt; color:var(--navy);
+}
+.master-drawer th, .master-drawer td{
+  padding:8px 10px; text-align:left;
+  border-bottom:1px solid var(--rule);
+}
+.master-drawer th{ background:var(--zebra); font-weight:700; }
+.master-drawer td.r{ text-align:right; font-variant-numeric:tabular-nums; }
+.toggle-3{ display:inline-flex; gap:2px; }
+.toggle-3 button{
+  padding:4px 10px; font-size:10pt;
+  background:#fff; color:var(--navy);
+  border:1px solid var(--rule);
+  cursor:pointer; font-family:var(--font);
+}
+.toggle-3 button.on[data-state="preliminar"]{ background:var(--grey-shade); color:var(--navy); border-color:var(--navy); }
+.toggle-3 button.on[data-state="adicional"]{ background:var(--orange); color:#fff; border-color:var(--orange); }
+.toggle-3 button.on[data-state="validada"]{ background:var(--green); color:#fff; border-color:var(--green); }
+.toggle-3 button:first-child{ border-radius:3px 0 0 3px; }
+.toggle-3 button:last-child{ border-radius:0 3px 3px 0; }
+
+.master-totals{
+  margin-top:24px; padding:16px;
+  background:var(--zebra); border-left:4px solid var(--navy);
+  font-size:11pt;
+}
+.master-totals .row{ display:flex; justify-content:space-between; padding:4px 0; }
+.master-totals .row strong{ font-weight:700; }
+
+/* ============================================================
+   6b. ANALYSIS-DRAWER — controles da ANÁLISE VIVA (Modo A)
+   Painel por slide de análise: cluster / meta / cap / maxBars.
+   Mexer aqui dispara recomputeAnalise() (computeBenchmarks + computeOportunidade).
+   Estilo segue o master-drawer (não inventa visual novo).
+   ============================================================ */
+.analysis-drawer{
+  position:fixed; top:48px; right:-100%;
+  width:420px; height:calc(100vh - 48px);
+  background:var(--paper); color:var(--navy);
+  box-shadow:-4px 0 24px rgba(0,0,0,.3);
+  transition:right .3s ease;
+  z-index:91;
+  overflow-y:auto;
+  padding:24px;
+}
+.analysis-drawer.open{ right:0; }
+.analysis-drawer h2{
+  margin:0 0 8px; font-size:16pt; color:var(--navy);
+  border-bottom:2px solid var(--navy); padding-bottom:8px;
+}
+.analysis-drawer .hint{ font-size:10pt; color:var(--grey-mid); margin-bottom:16px; }
+.analysis-drawer .ctrl{ margin-bottom:16px; }
+.analysis-drawer .ctrl label{ display:block; font-weight:700; font-size:10pt; margin-bottom:5px; }
+.analysis-drawer select,
+.analysis-drawer input[type="number"]{
+  width:100%; padding:6px 8px; font-size:10pt; font-family:var(--font);
+  color:var(--navy); border:1px solid var(--rule); border-radius:3px; background:#fff;
+}
+.analysis-drawer .row-inline{ display:flex; align-items:center; gap:8px; }
+.analysis-drawer .row-inline input[type="number"]{ flex:1; }
+.analysis-drawer .recompute-out{
+  margin-top:18px; padding:14px;
+  background:var(--zebra); border-left:4px solid var(--maroon);
+  font-size:11pt;
+}
+.analysis-drawer .recompute-out .big{ font-size:15pt; font-weight:800; color:var(--maroon); }
+
+/* ============================================================
+   7. LOGO Gradus — PNG real embutido (marca-positiva)
+   Fonte: gradus-consultant-frontend/assets/logos/logos-base64.js
+   ============================================================ */
+.logo-gradus{
+  display:inline-block;
+  height:26px; width:auto;
+  vertical-align:middle;
+}
+/* Esconde a imagem se ainda não tiver src real (evita ícone de "imagem quebrada"). */
+img.logo-gradus:not([src]),
+img.logo-gradus[src=""]{
+  display:none;
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     HEADER FIXO — navegação + ações
+     ============================================================ -->
+<div class="deck-header">
+  <div class="title"><!-- GEN: DECK_TITLE --> Storyline Gradus</div>
+  <div class="nav">
+    <button id="btn-prev">← Anterior</button>
+    <span class="counter"><span id="cur">1</span> / <span id="total">1</span></span>
+    <button id="btn-next">Próximo →</button>
+  </div>
+  <div class="actions" style="display:flex; gap:8px;">
+    <button id="btn-master">Gerenciar análises</button>
+    <button id="btn-create-bubble">+ Bubble</button>
+    <button id="btn-save">Salvar HTML</button>
+    <button id="btn-reset">Resetar</button>
+    <button id="btn-export-json" class="primary">Exportar JSON</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     PALCO — slides com scale letterbox
+     ============================================================ -->
+<div class="stage-wrap">
+  <div class="stage" id="stage">
+
+    <!-- ============================================================
+         PONTO DE INJEÇÃO: SLIDES
+         O gerador deve injetar <section class="slide" data-id="..."> blocos aqui
+         na ordem canônica: placar → buildup → (VGC + mapa + análises)×conta → OOI
+         Cada slide segue o esqueleto abaixo (comentado).
+         ============================================================ -->
+
+    <!-- EXEMPLO DE SLIDE 1 — PLACAR (template canonical: pacote-opportunity-summary)
+    <section class="slide active" data-id="placar-001" data-role="pacote-opportunity-summary">
+      <h1 class="lead" contenteditable="true">
+        {PACOTE CAPS} | Placar de oportunidades
+      </h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas">
+        <table class="tbl">
+          <thead>
+            <tr>
+              <th rowspan="2">Conta OM</th>
+              <th rowspan="2" class="it">Baseline</th>
+              <th colspan="2" class="grp">Oportunidades validadas</th>
+              <th colspan="2" class="grp">Oportunidades adicionais</th>
+            </tr>
+            <tr>
+              <th>R$/ano</th><th>% Baseline</th>
+              <th>R$/ano</th><th>% Baseline</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><td contenteditable="true">Conta 1</td>
+                <td class="computed">60,5</td>
+                <td class="computed">—</td><td class="computed">—</td>
+                <td class="computed">3,2</td><td class="computed">5,3%</td></tr>
+          </tbody>
+          <tfoot>
+            <tr class="total"><td>Total</td>
+                <td class="computed">60,5</td>
+                <td class="computed">—</td><td>—</td>
+                <td class="computed">3,2</td><td>5,3%</td></tr>
+          </tfoot>
+        </table>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contábil jan/2024 a dez/2024</span>
+        <span class="pageno">1</span>
+        <span class="brand"><span class="logo-gradus"></span></span>
+      </footer>
+    </section>
+    -->
+
+    <!-- GEN: SLIDES — injete aqui -->
+
+    <section class="slide active" data-id="placar-001" data-role="pacote-opportunity-summary">
+      <h1 class="lead" contenteditable="true">CONECTIVIDADE | Placar de oportunidades</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas">
+        <div class="canvas-tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr><th rowspan="2">Conta OM</th><th rowspan="2" class="it num">Baseline</th>
+                <th colspan="2" class="grp">Oportunidades validadas</th>
+                <th colspan="2" class="grp">Oportunidades adicionais</th></tr>
+              <tr><th class="num">Valor</th><th class="num">% Baseline</th><th class="num">Valor</th><th class="num">% Baseline</th></tr>
+            </thead>
+            <tbody>
+              <tr><td contenteditable="true">Rede Telefonia Terceira</td><td class="computed num">60,5</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td class="computed num">3,2</td><td class="computed num">5,3%</td></tr>
+              <tr><td contenteditable="true">Dados</td><td class="computed num">22,0</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td class="computed num">1,8</td><td class="computed num">8,2%</td></tr>
+            </tbody>
+            <tfoot><tr class="total"><td>Total</td><td class="computed num">82,5</td><td class="computed num">&mdash;</td><td class="num">&mdash;</td><td class="computed num">5,0</td><td class="num">6,1%</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">1</span></span>
+      </footer>
+    </section>
+
+    <!-- buildup HARDCODED ORIGINAL substituído por render via renderBuildup().
+         O markup estático abaixo serve de FALLBACK (impressão/sem-JS); a função
+         redesenha #buildup-bars com shade no focusIndex via dado-exemplo. -->
+    <section class="slide" data-id="buildup-001" data-role="buildup-pacote">
+      <h1 class="lead" contenteditable="true">CONECTIVIDADE | Detalhamento do pacote</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas" style="padding:30px 0 0;">
+        <!-- Container 810 centralizado: 90px reservados à esq pro label "% do pacote".
+             renderBuildup() preenche #buildup-bars (este DIV é o container relativo
+             das barras — e o shade entra como filho DELE, nunca de .canvas) (R3). -->
+        <div style="width:810px; margin:0 auto;">
+          <div id="buildup-bars" style="position:relative; width:810px; height:400px;"><!-- GEN/render: renderBuildup() --></div>
+          <div id="buildup-labels" style="position:relative; height:48px; margin-top:8px;"></div>
+          <div id="buildup-pct" style="position:relative; margin-top:16px; height:24px;"></div>
+        </div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">2</span></span>
+      </footer>
+    </section>
+
+    <section class="slide" data-id="mapa-001" data-role="mapa-de-analises">
+      <h1 class="lead" contenteditable="true">REDE TELEFONIA TERCEIRA | Mapa de análises (R$ MM/ano)</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano</div>
+      <div class="canvas">
+        <div class="canvas-tbl-wrap">
+          <table class="tbl">
+            <thead>
+              <tr><th rowspan="2">Natureza do gasto</th><th rowspan="2" class="it num">Baseline</th>
+                <th colspan="2" class="grp">Oportunidade</th>
+                <th rowspan="2">Fator</th><th rowspan="2">Análises</th></tr>
+              <tr><th class="num">Validada</th><th class="num">Adicional</th></tr>
+            </thead>
+            <tbody>
+              <tr><td contenteditable="true">Telefonia móvel</td><td class="computed num">38,0</td><td class="computed num">&mdash;</td><td class="computed num">3,2</td><td contenteditable="true">Preço</td><td contenteditable="true">Comparação R$/min por cluster</td></tr>
+              <tr><td contenteditable="true">Interurbana</td><td class="computed num">14,5</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td contenteditable="true">Consumo</td><td contenteditable="true">Sem oportunidade</td></tr>
+              <tr><td contenteditable="true">Local</td><td class="computed num">8,0</td><td class="computed num">&mdash;</td><td class="computed num">&mdash;</td><td contenteditable="true">Total</td><td contenteditable="true">Sem oportunidade</td></tr>
+            </tbody>
+            <tfoot><tr class="total"><td>Total</td><td class="computed num">60,5</td><td class="computed num">&mdash;</td><td class="computed num">3,2</td><td>&mdash;</td><td>&mdash;</td></tr></tfoot>
+          </table>
+        </div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024; análise sobre Base SAP-CO 2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">3</span></span>
+      </footer>
+    </section>
+
+    <section class="slide" data-id="analise-001" data-role="análise" data-analysis-id="a1">
+      <span class="badge" data-badge="PRELIMINAR">PRELIMINAR</span>
+      <h1 class="lead" contenteditable="true">A oportunidade concentra-se em renegociação tarifária com tres operadoras, valendo R$ 3,2 MM/ano</h1>
+      <div class="subhead" contenteditable="true">REDE TELEFONIA TERCEIRA · R$ MM/ano</div>
+      <div class="canvas" style="padding-top:24px;">
+        <p contenteditable="true" style="max-width:760px;">"+ Bubble" cria bubble navy. Duplo clique edita. Click 1x seleciona. Delete remove. Arraste pra mover.</p>
+        <div class="callout-opp bubble" style="left:1000px; top:240px;">Oportunidade<br>R$ 3,2 MM (5,3%)</div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: Realizado contabil jan/2024 a dez/2024; análise sobre Base SAP-CO 2024</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">4</span></span>
+      </footer>
+    </section>
+
+    <!-- ============================================================
+         EXEMPLO: a skill injeta dados reais aqui
+         3 slides de EXEMPLO p/ os renderers portados (tornado / análise-viva / resumo-geral).
+         Os dados vivem em DEMO.* no <script> (placeholder) — a skill substitui por dados reais.
+         ============================================================ -->
+
+    <!-- EXEMPLO renderTornado: ranking SVG (barras ordenadas + ref-line mediana + labels rotacionados + seta) -->
+    <section class="slide" data-id="ex-tornado" data-role="análise" data-analysis-id="a2"
+             data-render="tornado" data-target="svg-tornado">
+      <span class="badge" data-badge="EXEMPLO">EXEMPLO</span>
+      <h1 class="lead" contenteditable="true">Poucas categorias concentram o desperdício &mdash; a cauda fica acima da mediana de eficiência</h1>
+      <div class="subhead" contenteditable="true">RANKING POR INDICADOR &middot; barras ordenadas, linha = mediana</div>
+      <div class="canvas">
+        <svg id="svg-tornado" viewBox="0 0 1180 470" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"><!-- EXEMPLO: a skill injeta dados reais aqui (renderTornado) --></svg>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: dado-exemplo (placeholder) &mdash; a skill injeta a série real</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">5</span></span>
+      </footer>
+    </section>
+
+    <!-- EXEMPLO análise-viva: controles (cluster/meta/cap/maxBars) + recompute ao vivo do callout -->
+    <section class="slide" data-id="ex-analise-viva" data-role="análise" data-analysis-id="a3"
+             data-render="analiseViva" data-target="av-host" data-bucket="custo-frete">
+      <span class="badge" data-badge="PARA DISCUSSÃO">PARA DISCUSSÃO</span>
+      <h1 class="lead" contenteditable="true">Análise viva: o callout recomputa ao vivo conforme cluster / meta / cap</h1>
+      <div class="subhead" contenteditable="true">MODO A &middot; abra os controles em "Analisar (controles)" no topo</div>
+      <div class="canvas" style="padding-top:18px;">
+        <div id="av-host" style="display:flex; gap:24px; height:100%;">
+          <!-- EXEMPLO: a skill injeta unidades/drivers reais aqui (makeBucketState/computeBenchmarks/computeOportunidade) -->
+        </div>
+        <div class="callout-opp bubble" data-av-callout style="left:1010px; top:250px;">&mdash;</div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: dado-exemplo (placeholder) &mdash; a skill injeta unidades + método declarado</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">6</span></span>
+      </footer>
+    </section>
+
+    <!-- EXEMPLO renderResumoGeral: tabela balanceada em 2 colunas com subtotais + total geral.
+         NÃO existia na v3 — implementada conforme padrão de tabela do §11.3 da spec. -->
+    <section class="slide" data-id="ex-resumo-geral" data-role="visao-geral-conta"
+             data-render="resumoGeral" data-target="rg-host">
+      <span class="badge" data-badge="BACKUP">BACKUP</span>
+      <h1 class="lead" contenteditable="true">Resumo geral por agrupamento &mdash; subtotais e total geral reconciliam</h1>
+      <div class="subhead" contenteditable="true">R$ MM/ano &middot; tabela balanceada em 2 colunas</div>
+      <div class="canvas">
+        <div id="rg-host" class="canvas-tbl-wrap" style="align-items:flex-start; gap:32px;"><!-- EXEMPLO: a skill injeta agrupamentos reais aqui (renderResumoGeral) --></div>
+      </div>
+      <footer class="foot">
+        <span class="src" contenteditable="true">Fonte: dado-exemplo (placeholder) &mdash; a skill injeta os agrupamentos reais</span>
+        <span class="right"><span class="brand"><img class="logo-gradus" alt="Gradus"></span><span class="pageno">7</span></span>
+      </footer>
+    </section>
+
+
+  </div>
+</div>
+
+<!-- ============================================================
+     MAPA-MESTRE — drawer flutuante (controle de classificação)
+     ============================================================ -->
+<div class="master-drawer" id="master-drawer">
+  <h2>Mapa-mestre de análises do pacote</h2>
+  <p class="hint">
+    Toda análise nasce como <strong>Preliminar</strong> e tem valor real calculado no slide.
+    Para entrar no placar e nos mapas-de-análises por conta, promova para <strong>Adicional</strong> ou <strong>Validada</strong>.
+    Preliminares contam como R$ 0 nos agregados.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Análise</th><th>Conta OM</th><th class="r">R$ calculado</th><th>Estado</th></tr>
+    </thead>
+    <tbody id="master-tbody">
+      <!-- GEN: MASTER_ROWS — injetar uma linha por análise:
+      <tr data-analysis-id="analise-001">
+        <td>Comparação R$/min por cluster</td>
+        <td>Rede Telefonia Terceira</td>
+        <td class="r">R$ 3,2 MM</td>
+        <td>
+          <div class="toggle-3" data-analysis-id="analise-001">
+            <button data-state="preliminar" class="on">Preliminar</button>
+            <button data-state="adicional">Adicional</button>
+            <button data-state="validada">Validada</button>
+          </div>
+        </td>
+      </tr>
+      -->
+
+      <tr data-analysis-id="a1"><td>Comparação R$/min por cluster</td><td>Rede Telefonia Terceira</td><td class="r">R$ 3,2 MM</td>
+        <td><div class="toggle-3" data-analysis-id="a1">
+          <button data-state="preliminar" class="on">Preliminar</button>
+          <button data-state="adicional">Adicional</button>
+          <button data-state="validada">Validada</button>
+        </div></td>
+      </tr>
+
+    </tbody>
+  </table>
+  <div class="master-totals" id="master-totals">
+    <div class="row"><span>Total Validadas:</span> <strong id="tot-validada">R$ 0,0 MM</strong></div>
+    <div class="row"><span>Total Adicionais:</span> <strong id="tot-adicional">R$ 0,0 MM</strong></div>
+    <div class="row" style="color:var(--grey-mid);"><span>Preliminares (fora do placar):</span> <strong id="tot-preliminar">R$ 0,0 MM</strong></div>
+  </div>
+</div>
+
+<!-- ============================================================
+     ANALYSIS-DRAWER — controles da análise viva (Modo A)
+     ============================================================ -->
+<div class="analysis-drawer" id="analysis-drawer">
+  <h2>Controles da análise</h2>
+  <p class="hint">Modo A &mdash; o callout recomputa ao vivo (computeBenchmarks + computeOportunidade). A skill injeta as unidades reais.</p>
+  <div class="ctrl">
+    <label for="av-cluster">Dimensões de cluster</label>
+    <select id="av-cluster" multiple size="3"><!-- GEN: dims --></select>
+  </div>
+  <div class="ctrl">
+    <label for="av-meta">Meta (benchmark)</label>
+    <select id="av-meta">
+      <option value="median">Mediana (P50) &mdash; conservadora</option>
+      <option value="q1">1º quartil (P25) &mdash; agressiva</option>
+    </select>
+  </div>
+  <div class="ctrl">
+    <label for="av-cap">Cap de compressão (%)</label>
+    <div class="row-inline">
+      <input type="number" id="av-cap" min="0" max="100" step="5" value="30">
+      <label style="display:flex;align-items:center;gap:5px;font-weight:400;"><input type="checkbox" id="av-cap-on" checked> aplicar</label>
+    </div>
+  </div>
+  <div class="ctrl">
+    <label for="av-maxbars">maxBars (nº de barras do ranking/tornado)</label>
+    <input type="number" id="av-maxbars" min="3" max="60" step="1" value="12">
+  </div>
+  <div class="recompute-out" id="av-out">
+    <div>Oportunidade calculada</div>
+    <div class="big" id="av-out-val">R$ 0,0 MM</div>
+    <div id="av-out-note" style="font-size:9.5pt;color:var(--grey-mid);margin-top:4px;"></div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   7b. LOGO BASE64 — PNG marca-positiva da Gradus (skill irmã)
+   ============================================================ */
+const GRADUS_LOGO_DATA_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAARsAAABgCAMAAAAaYSalAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAAGhUExURQAAAAAAAAAAAAAAABoaGhcXFxUVFRQUFBERERAQEBwODhoaGhgYGCNouRYWFh8fHyEZGRgYGB0dHRwcHB4eHiIcHCEcHCdptyAbGyVqtR8aGh8aGh8fHx4eHiIdHSAbGx8bGyMeHiIeHiAcHCRtth8bGx4bGyEaHSEdHSRstyAcHCNquB8bGyVtuCIeHiEeHiEaHSIfHyEbGyAaGiAdHSAdHR8cHCIcHCEcHCEfHyAeHh8dHSZuuiEcHCMcHCAeHiEcHCEbHSEdHSMdHyMfHyAeHiIeHiIeHiAeHiEcHCIeHiEdHyIeHiEdHSIfHyAdHSIdHyMeICIcHyIcHiMdHSIdHSMeICEcHyIdHSMdHSdstyIeHiEcHCAeHiEeHyIfHyEeHiMcHSEdHyIdHSEcHiIdHSIfHyEdHiAeHiEdHSIeHiIfHyAeHyIeHiIdHyEeHiMcHiIfHyEdHiIdHiIeHyIdHyIdHiIdHiIeHyduuSIeHiIdHiIeHyZtuCEeHyIeHyIeHyIdHiEdHiEdHiIdHiIeHyIeHyIeHyIeHyMfIChuuSWjqpUAAACJdFJOUwABAgMKCwwNDxASFBUWFxkfICMlKi0uLjAwMTIyMzU4OTs8Pz9CQ0ZGR0hIS0tMTU5TVVdXWVpbY2RnamttbW51e3x9hIeIj5CRl5yfoKOlp6mrrK2usbS2trm6vMLDxcbHyM3O0NHT1NbY2dzk5unp6uzt7e7v8fHx8vPz8/T19vf4+fr6/P3+K+CoNQAAAAlwSFlzAAAh1QAAIdUBBJy0nQAABB9JREFUeF7t2eeXFEUUBfACRDGCiDlhQsWIOQdQwZzWnHMWzFkUFS3/aqvevdNT1aG6nemdOXPO/X1g675X27x5H4bZxYmIiIiIiIiIiIiIiIiIiIjITDZv5kFSh33lI5ZG8bFhWEncSoXlEYz9vEX7Gy8gdTdbc8PjGFYPxq9jc16jPmzhMH0T23Ma81kLh+Gjk2K8gsH7o9aeF57FsGIwu/d/MAesjPOCRnzUor2B2f0xzOY7KzHMyR61mrvB6PXZ32qWZtX6/JXwI0b/lLHif+ahaPuda2sP7GDogL+AYYDzH1t74nqelwuTl0evrtxYnYLTEMyrKCVOZMfvxBdUX7DzRoTAYvqXf4NKdIilLif/2+MqXpzVcZjjVsZ2uFPt0V7LFp4n7GJlF6tTqPfsZj/yxLcst+MGCnhxVpyCqQPv4Iv3n4VS84M0rgJLKTTKu0FKsN6OCyjgxVkNGaI+c1stsLJhIYNOcTdbkaZOZaMdF1DAi7PCED0/JeNSJSneFw4v2cn7X1FvX82Q3SD4h8PxmXg4jHIXLqCAF2dl0/irmTrgUvTcJncOX8r7/lEcnHsSTabJ5+oLEJkQBuyGwf1WnZYlnye6BCVzEUpM/h7EJrSzMH1mGv/HbpavOU/3bi5EarHR+jjzXz6EKM0ruJvdTFH3bhAyt3/p/YdP79mR9O3ov0aIUMB5yPvN74xLh3HS9+LO3VyLMIXyVFrF2aSFIbuJbmap6Qe+z3bivRFwFqaoczc4V75HNYF6ejZpobibyTBwA4u5X7iBAt6cHwdhMhui96xc2A1qmbSBs0kL5d3UHspihq+/hDfndxvGeIWx0rebF1HLoJOeTVro2Y17GwW6jtUEX38Jb46AYzBV+naD0l9MGyzhbMf0clro241zx6MErCUu5QK6vcybI+AU9TEG7ab6nemIu4keQdm3/p7kzDLeGgVelvdHmKlnNx/klcG7edDOFyMEFrMnExptnUXiFLU5Dlmpczdf5BVLjPwJHSFAnOQs1HqZ7s4iYYrgJhYCVjp383lesTSJCKczbUPMm/xP92eRkufwa1DrLMkJGMPsC/kOnoPO3ezOSgi19JqFvUy15lPJefrkcDzI4715h++zna7kvdFdjjla9LwXe/+6c/fzmL3EJvZuYcywx+QPVr8YvYwdbqCAF8d3Ckepe5x9JAZAKceW+4o5w17hGxlSaAzZzV28uQ44S4691t3k3/GO/cmOc0ct5tiqfeOb9ica59o5hXrABRSs427ceRxnahs7AQoMEyiasxDYCA5YNp80vhs5etftsa9spI8M/mE14AIKeHG9/MmZop9Yg+cNQ+UM3n0onBsXjrAZjtbLmmjFT47H1nr43BTln7fOvqaM10RERERERERERERERERERERExuTcf21ybkX478ecAAAAAElFTkSuQmCC"; // GEN: substituir pela data URL real do logo Gradus (PNG base64). Ver /assets/logos/
+
+function applyLogos(){
+  if(!GRADUS_LOGO_DATA_URL) return; // sem logo configurado ainda
+  document.querySelectorAll('img.logo-gradus').forEach(img => {
+    if(!img.src || img.src.length < 100) img.src = GRADUS_LOGO_DATA_URL;
+  });
+}
+
+/* ============================================================
+   8. ESTADO E PERSISTÊNCIA
+   ============================================================ */
+const STATE = {
+  meta: { /* GEN: META — cliente, pacote, tema */ },
+  slides: [],   /* GEN: SLIDES_JSON — array de slides com role/leadTitle/elements/params */
+  analyses: [{id:"a1", name:"Comparação R$/min por cluster", conta:"Rede Telefonia Terceira", value:3.2, state:"preliminar"}], /* GEN: ANALYSES_JSON — array de análises pro mapa-mestre */
+  textOverrides: {},
+  currentSlide: 0
+};
+
+const LS_KEY = 'gradus-storyline-' + (location.pathname.split('/').pop() || 'default');
+
+function loadState(){
+  try{
+    const saved = localStorage.getItem(LS_KEY);
+    if(saved){
+      const parsed = JSON.parse(saved);
+      Object.assign(STATE, parsed);
+      return true;
+    }
+  }catch(e){ console.warn('Falha ao carregar state:', e); }
+  return false;
+}
+
+let saveTimer = null;
+function saveState(){
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try{
+      localStorage.setItem(LS_KEY, JSON.stringify(STATE));
+    }catch(e){ console.warn('Falha ao salvar:', e); }
+  }, 500); // debounce 500ms
+}
+
+function resetState(){
+  if(!confirm('Resetar todas as edições para o original? Esta ação não pode ser desfeita.')) return;
+  localStorage.removeItem(LS_KEY);
+  location.reload();
+}
+
+/* ============================================================
+   9. SCALE LETTERBOX — palco 1280×720 cabe na viewport
+   ============================================================ */
+function applyScale(){
+  const stage = document.getElementById('stage');
+  const wrap  = stage.parentElement;
+  const availW = wrap.clientWidth;
+  const availH = wrap.clientHeight;
+  const scale = Math.min(availW / 1280, availH / 720);
+  // scaled dimensions
+  const scaledW = 1280 * scale;
+  const scaledH = 720 * scale;
+  // offset pra centralizar
+  const offsetX = (availW - scaledW) / 2;
+  const offsetY = (availH - scaledH) / 2;
+  // ordem importa: translate primeiro, depois scale (com origin top-left)
+  stage.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+}
+window.addEventListener('resize', applyScale);
+
+/* ============================================================
+   10. NAVEGAÇÃO ENTRE SLIDES
+   ============================================================ */
+function getSlides(){ return document.querySelectorAll('.slide'); }
+
+function showSlide(idx){
+  const slides = getSlides();
+  if(idx < 0) idx = 0;
+  if(idx >= slides.length) idx = slides.length - 1;
+  slides.forEach((s, i) => s.classList.toggle('active', i === idx));
+  STATE.currentSlide = idx;
+  document.getElementById('cur').textContent = idx + 1;
+  document.getElementById('total').textContent = slides.length;
+  renderActive();                 // dispatch dos renderers do slide ativo
+  saveState();
+}
+
+document.addEventListener('keydown', (e) => {
+  if(document.activeElement && document.activeElement.isContentEditable) return;
+  if(e.key === 'ArrowRight' || e.key === 'PageDown') showSlide(STATE.currentSlide + 1);
+  if(e.key === 'ArrowLeft'  || e.key === 'PageUp')   showSlide(STATE.currentSlide - 1);
+});
+
+/* botões prev/next bindados dentro de init() — ver §16 */
+
+/* ============================================================
+   11. EDIÇÃO INLINE — captura mudanças em [contenteditable]
+   ============================================================ */
+function bindEditable(){
+  document.querySelectorAll('[contenteditable="true"]').forEach(el => {
+    if(el.dataset.bound) return;
+    el.dataset.bound = '1';
+    const slide = el.closest('.slide');
+    const sid = slide?.dataset.id || 'unknown';
+    const key = `${sid}::${el.dataset.field || el.tagName + '-' + Array.from(slide.querySelectorAll('[contenteditable]')).indexOf(el)}`;
+
+    // restaura override se houver
+    if(STATE.textOverrides[key] !== undefined){
+      el.textContent = STATE.textOverrides[key];
+    }
+
+    el.addEventListener('input', () => {
+      STATE.textOverrides[key] = el.textContent;
+      saveState();
+      checkOverflow(slide);
+    });
+
+    el.addEventListener('blur', () => {
+      el.scrollLeft = 0;
+    });
+  });
+}
+
+/* ============================================================
+   11b. DRAG-AND-DROP — bubbles de oportunidade (callout-opp)
+   ============================================================ */
+function bindDraggable(){
+  document.querySelectorAll('.callout-opp').forEach(el => {
+    if(el.dataset.draggableBound) return;
+    el.dataset.draggableBound = '1';
+    const slide = el.closest('.slide');
+    const sid = slide?.dataset.id || 'unknown';
+    // chave persistente da posição do bubble
+    const idx = Array.from(slide.querySelectorAll('.callout-opp')).indexOf(el);
+    const posKey = `${sid}::callout-pos-${idx}`;
+
+    // restaura posição salva
+    const saved = STATE.textOverrides[posKey];
+    if(saved){
+      try{
+        const {left, top} = JSON.parse(saved);
+        el.style.left = left + 'px';
+        el.style.top = top + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+      }catch(e){}
+    }
+
+    el.addEventListener('mousedown', (e) => {
+      if(e.target !== el && e.target.isContentEditable) return;
+      // se clicou no resize handle (canto inferior direito ~16px), não inicia drag
+      // deixa o resize nativo do CSS funcionar
+      const rect = el.getBoundingClientRect();
+      const inResizeCorner = (rect.right - e.clientX < 16) && (rect.bottom - e.clientY < 16);
+      if(inResizeCorner) return;
+      e.preventDefault();
+      el.classList.add('dragging');
+
+      const stage = document.getElementById('stage');
+      const stageRect = stage.getBoundingClientRect();
+      const scale = stageRect.width / 1280;
+
+      // posição inicial do bubble no palco (coords não-escaladas)
+      // pega da style atual OU do offsetLeft/offsetTop (que já estão em coords do palco)
+      let startLeft = parseFloat(el.style.left);
+      let startTop = parseFloat(el.style.top);
+      if(isNaN(startLeft)) startLeft = el.offsetLeft;
+      if(isNaN(startTop)) startTop = el.offsetTop;
+
+      // posição inicial do mouse em coords de tela
+      const startMouseX = e.clientX;
+      const startMouseY = e.clientY;
+
+      function onMove(ev){
+        // delta do mouse em coords de tela → converter pra coords do palco dividindo por scale
+        const dxStage = (ev.clientX - startMouseX) / scale;
+        const dyStage = (ev.clientY - startMouseY) / scale;
+        const w = el.offsetWidth, h = el.offsetHeight;
+        const x = Math.max(0, Math.min(1280 - w, startLeft + dxStage));
+        const y = Math.max(0, Math.min(720 - h, startTop + dyStage));
+        el.style.left = x + 'px';
+        el.style.top = y + 'px';
+        el.style.right = 'auto';
+        el.style.bottom = 'auto';
+      }
+
+      function onUp(){
+        el.classList.remove('dragging');
+        const x = parseFloat(el.style.left) || 0;
+        const y = parseFloat(el.style.top) || 0;
+        STATE.textOverrides[posKey] = JSON.stringify({left: x, top: y});
+        saveState();
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+      }
+
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
+  });
+}
+
+/* ============================================================
+   11c. CRIAR BUBBLE CUSTOM — cor navy, draggável, resizível, texto editável
+   ============================================================ */
+let bubbleCounter = 0;
+function createBubble(){
+  // identifica o slide ativo
+  const slide = document.querySelector('.slide.active');
+  if(!slide){
+    alert('Nenhum slide ativo.');
+    return;
+  }
+  // canvas onde o bubble vai entrar (preferencial) ou direto no slide
+  const canvas = slide.querySelector('.canvas') || slide;
+  // posição inicial: centro aproximado
+  const left = 540, top = 280;
+  bubbleCounter += 1;
+  const id = `custom-bubble-${Date.now()}-${bubbleCounter}`;
+
+  const div = document.createElement('div');
+  div.className = 'callout-opp custom-navy';
+  div.id = id;
+  div.style.left = left + 'px';
+  div.style.top = top + 'px';
+  div.style.width = '182px';
+  div.style.height = '86px';
+  div.dataset.customBubble = '1'; // marca pra identificar bubbles removíveis
+
+  // estrutura interna: span do texto + botão X
+  const textSpan = document.createElement('span');
+  textSpan.className = 'bubble-text';
+  textSpan.textContent = 'Texto livre…';
+  div.appendChild(textSpan);
+
+  const xBtn = document.createElement('div');
+  xBtn.className = 'bubble-delete';
+  xBtn.textContent = '×';
+  xBtn.title = 'Remover bubble';
+  xBtn.addEventListener('mousedown', (ev) => ev.stopPropagation()); // não dispara drag
+  xBtn.addEventListener('click', (ev) => {
+    ev.stopPropagation();
+    div.remove();
+    // limpa overrides associados
+    Object.keys(STATE.textOverrides).forEach(k => {
+      if(k.startsWith(id + '::')) delete STATE.textOverrides[k];
+    });
+    saveState();
+  });
+  div.appendChild(xBtn);
+
+  div.setAttribute('contenteditable', 'false');
+  canvas.appendChild(div);
+
+  // selecionar bubble ao clicar (mostra o X e habilita Delete via teclado)
+  div.addEventListener('mousedown', (e) => {
+    document.querySelectorAll('.callout-opp.custom-navy.selected').forEach(b => b.classList.remove('selected'));
+    div.classList.add('selected');
+  });
+
+  // double-click → entra em modo edição (no textSpan, não no div inteiro)
+  div.addEventListener('dblclick', (e) => {
+    e.stopPropagation();
+    div.classList.add('editing');
+    textSpan.setAttribute('contenteditable', 'true');
+    textSpan.focus();
+    const range = document.createRange();
+    range.selectNodeContents(textSpan);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  });
+
+  // blur do texto → sai do modo edição e salva
+  textSpan.addEventListener('blur', () => {
+    div.classList.remove('editing');
+    textSpan.setAttribute('contenteditable', 'false');
+    const key = `${id}::text`;
+    STATE.textOverrides[key] = textSpan.textContent;
+    saveState();
+  });
+
+  bindDraggable();
+
+  setTimeout(() => {
+    div.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+  }, 50);
+}
+
+// tecla Delete/Backspace remove bubble selecionado
+document.addEventListener('keydown', (e) => {
+  if(e.key !== 'Delete' && e.key !== 'Backspace') return;
+  // se está editando texto em qualquer lugar, não remove
+  if(document.activeElement && document.activeElement.isContentEditable) return;
+  const selected = document.querySelector('.callout-opp.custom-navy.selected');
+  if(selected){
+    e.preventDefault();
+    const id = selected.id;
+    selected.remove();
+    Object.keys(STATE.textOverrides).forEach(k => {
+      if(k.startsWith(id + '::')) delete STATE.textOverrides[k];
+    });
+    saveState();
+  }
+});
+
+// click fora do bubble → deseleciona
+document.addEventListener('mousedown', (e) => {
+  if(!e.target.closest('.callout-opp.custom-navy')){
+    document.querySelectorAll('.callout-opp.custom-navy.selected').forEach(b => b.classList.remove('selected'));
+  }
+});
+
+/* ============================================================
+   12. GUARD DE OVERFLOW — sinaliza se conteúdo extrapola 720px
+   ============================================================ */
+function checkOverflow(slide){
+  if(!slide) return;
+  // tolerância de 2px (arredondamento de subpixel em browsers diferentes)
+  const overflow = slide.scrollHeight > 722;
+  slide.style.outline = overflow ? '3px solid var(--red)' : '';
+  if(overflow){
+    console.warn(`Overflow no slide ${slide.dataset.id}: scrollHeight=${slide.scrollHeight}`);
+  }
+}
+
+/* ============================================================
+   12b. UTIL DE FORMATAÇÃO (pt-BR) — usado pelos renderers
+   ============================================================ */
+const FMT = {
+  mm: (v, dec=1) => 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) + ' MM',
+  num: (v, dec=1) => Number(v).toLocaleString('pt-BR', {minimumFractionDigits:dec, maximumFractionDigits:dec}),
+  pct: (v, dec=1) => Number(v).toLocaleString('pt-BR', {minimumFractionDigits:dec, maximumFractionDigits:dec}) + '%'
+};
+function median(arr){
+  const a = arr.slice().sort((x,y)=>x-y); const n=a.length; if(!n) return 0;
+  return n%2 ? a[(n-1)/2] : (a[n/2-1]+a[n/2])/2;
+}
+function quantile(arr, q){
+  const a = arr.slice().sort((x,y)=>x-y); const n=a.length; if(!n) return 0;
+  const pos = (n-1)*q, base = Math.floor(pos), rest = pos-base;
+  return a[base] + (a[base+1]!==undefined ? rest*(a[base+1]-a[base]) : 0);
+}
+
+/* ============================================================
+   12c. renderTornado(svgId, data, cfg) — RANKING SVG PURO (sem lib)
+   Generaliza o ranking ordenado do v3 (renderV1) p/ SVG handcrafted:
+   barras horizontais ordenadas + ref-line (mediana/Q1) + labels rotacionados
+   + seta "menos eficiente" + tooltip navy.
+   data: [{label, valor, ...}]   cfg: {meta, maxBars, indLabel, ...}
+   🔒 R6: NADA hardcoded — maxBars/casas/ref vêm de cfg.
+   ============================================================ */
+function renderTornado(svgId, data, cfg){
+  const svg = document.getElementById(svgId); if(!svg) return;
+  cfg = cfg || {};
+  const maxBars = (cfg.maxBars != null) ? cfg.maxBars : 12;   // R6: parâmetro, nunca literal
+  const dec     = (cfg.dec != null) ? cfg.dec : 1;
+  const indLabel = cfg.indLabel || 'indicador';
+  const metaKind = cfg.meta || 'median';                      // 'median' | 'q1' | número absoluto
+  const VBW = 1180, VBH = 470;                                // viewBox lógico do SVG do slide
+  const NS = 'http://www.w3.org/2000/svg';
+
+  // ordena desc por valor e trunca a maxBars (resto colapsa em "Outros (N)")
+  const all = data.slice().filter(d => d && isFinite(d.valor)).sort((a,b)=> b.valor - a.valor);
+  let rows = all.slice(0, maxBars);
+  const rest = all.slice(maxBars);
+  if(rest.length){
+    const soma = rest.reduce((a,d)=>a+d.valor, 0);
+    rows = rows.concat([{ label:`Outros (${rest.length})`, valor:soma, _outros:true }]);
+  }
+
+  // ref-line (mediana/Q1 do dataset COMPLETO — não do truncado)
+  const vals = all.map(d=>d.valor);
+  let refVal;
+  if(typeof metaKind === 'number') refVal = metaKind;
+  else if(metaKind === 'q1')       refVal = quantile(vals, 0.25);
+  else                              refVal = median(vals);
+
+  // geometria
+  const padL = 250, padR = 60, padT = 24, padB = 64;
+  const plotW = VBW - padL - padR, plotH = VBH - padT - padB;
+  const n = rows.length;
+  const bandH = plotH / n, barH = Math.min(bandH * 0.62, 26);
+  const vmax = Math.max(refVal, ...rows.map(r=>r.valor), 1);
+  const x = v => padL + (v / vmax) * plotW;
+
+  while(svg.firstChild) svg.removeChild(svg.firstChild);
+  const add = (tag, attrs, txt) => {
+    const e = document.createElementNS(NS, tag);
+    for(const k in attrs) e.setAttribute(k, attrs[k]);
+    if(txt != null) e.textContent = txt;
+    svg.appendChild(e);
+    return e;
+  };
+  svg.setAttribute('viewBox', `0 0 ${VBW} ${VBH}`);
+
+  // eixo base
+  add('line', {x1:padL, y1:padT, x2:padL, y2:padT+plotH, stroke:'#A5A5A5', 'stroke-width':1});
+
+  // barras + labels + valores
+  rows.forEach((r, i) => {
+    const cy = padT + i*bandH + bandH/2;
+    const w = Math.max(0, x(r.valor) - padL);
+    const col = r._outros ? '#9DB1CF' : (r.valor >= refVal ? (cfg.colorOver || '#800000') : (cfg.colorUnder || '#306F9F'));
+    // rótulo da categoria (à esquerda, sem rotação quando cabe)
+    add('text', {x:padL-10, y:cy+4, 'text-anchor':'end', fill:'#12376C', 'font-size':12,
+                 'font-weight':r._outros?'400':'700', 'font-style':r._outros?'italic':'normal'}, r.label);
+    // barra
+    const rect = add('rect', {x:padL, y:cy-barH/2, width:w, height:barH, fill:col, rx:1});
+    rect.setAttribute('data-label', r.label);
+    rect.setAttribute('data-valor', r.valor);
+    // valor à direita
+    add('text', {x:x(r.valor)+6, y:cy+4, 'text-anchor':'start', fill:'#12376C', 'font-size':11, 'font-weight':'700'},
+        FMT.num(r.valor, dec));
+  });
+
+  // ref-line (mediana/Q1) — vertical, vermelha tracejada + rótulo rotacionado
+  const rx = x(refVal);
+  add('line', {x1:rx, y1:padT-2, x2:rx, y2:padT+plotH+6, stroke:'#C00000', 'stroke-width':2, 'stroke-dasharray':'6 4'});
+  const refTxt = (metaKind==='q1'?'Q1':'mediana') + ' ' + FMT.num(refVal, dec);
+  add('text', {x:rx, y:padT-6, 'text-anchor':'middle', fill:'#C00000', 'font-size':11, 'font-weight':'700',
+               transform:`rotate(-60 ${rx} ${padT-6})`}, refTxt);
+
+  // eixo X label + seta "menos eficiente →" (aponta p/ os maiores valores = pior)
+  add('text', {x:padL + plotW/2, y:VBH-26, 'text-anchor':'middle', fill:'#7B8EA0', 'font-size':11}, indLabel);
+  const ay = VBH-44;
+  const arrow = add('line', {x1:padL+plotW*0.55, y1:ay, x2:padL+plotW, y2:ay, stroke:'#800000', 'stroke-width':2,
+                             'marker-end':'url(#tornadoArrow)'});
+  const defs = document.createElementNS(NS, 'defs');
+  const mk = document.createElementNS(NS, 'marker');
+  mk.setAttribute('id','tornadoArrow'); mk.setAttribute('markerWidth','9'); mk.setAttribute('markerHeight','9');
+  mk.setAttribute('refX','6'); mk.setAttribute('refY','3'); mk.setAttribute('orient','auto');
+  const ap = document.createElementNS(NS,'path'); ap.setAttribute('d','M0,0 L7,3 L0,6 Z'); ap.setAttribute('fill','#800000');
+  mk.appendChild(ap); defs.appendChild(mk); svg.insertBefore(defs, svg.firstChild);
+  add('text', {x:padL+plotW*0.55-6, y:ay+4, 'text-anchor':'end', fill:'#800000', 'font-size':10, 'font-weight':'700'}, 'menos eficiente');
+
+  // tooltip navy (HTML overlay sobre o slide)
+  bindTornadoTooltip(svg, indLabel, dec);
+}
+
+function bindTornadoTooltip(svg, indLabel, dec){
+  const slide = svg.closest('.slide'); if(!slide) return;
+  let tip = slide.querySelector('.tornado-tt');
+  if(!tip){
+    tip = document.createElement('div'); tip.className = 'tornado-tt';
+    tip.style.cssText = 'position:absolute;pointer-events:none;z-index:50;background:#002060;color:#fff;'+
+      'border-radius:5px;padding:6px 9px;font-family:var(--font);font-size:10pt;font-weight:700;'+
+      'opacity:0;transition:opacity .08s;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,.3);';
+    slide.appendChild(tip);
+  }
+  svg.querySelectorAll('rect[data-label]').forEach(rect => {
+    rect.style.cursor = 'pointer';
+    rect.onmousemove = (e) => {
+      const sr = slide.getBoundingClientRect(); const sc = sr.width/1280;
+      tip.innerHTML = `${rect.getAttribute('data-label')}<br><span style="font-weight:400">${indLabel}:</span> ${FMT.num(+rect.getAttribute('data-valor'), dec)}`;
+      tip.style.opacity = 1;
+      tip.style.left = ((e.clientX - sr.left)/sc + 12) + 'px';
+      tip.style.top  = ((e.clientY - sr.top)/sc - 10) + 'px';
+    };
+    rect.onmouseleave = () => { tip.style.opacity = 0; };
+  });
+}
+
+/* ============================================================
+   12d. renderBuildup(containerId, bars, {focusIndex, ...}) — WATERFALL
+   Porte do renderWaterfall do v3, generalizado. Desenha barras flutuantes +
+   conectores pontilhados + faixa "% do pacote" + shade na barra-foco.
+   🔒 R3: o shade é FILHO do containerId (container relativo das barras), nunca de .canvas.
+   bars: [{n:'rótulo', v:valor}]   opts: {focusIndex, total, totalLabel, pctBase, scaleMax,
+                                          barColors, totalColor, pctLabel, labelsId, pctId}
+   ============================================================ */
+function renderBuildup(containerId, bars, opts){
+  const el = document.getElementById(containerId); if(!el) return;
+  opts = opts || {};
+  const n = bars.length;
+  const W = el.clientWidth || 810;
+  const H = 380;                                              // §11.6: altura do gráfico
+  const reserveL = 0;                                         // labels ficam em containers irmãos
+  const total = (opts.total != null) ? opts.total : bars.reduce((a,b)=>a+b.v, 0);
+  const totalLabel = opts.totalLabel || 'Total';
+  const pctBase = (opts.pctBase != null) ? opts.pctBase : total;
+  const barColors = opts.barColors || null;
+  const totalColor = opts.totalColor || 'var(--blue-light)';  // §11.6: TODAS azul-light por padrão
+  const pctLabel = opts.pctLabel || '% do pacote';
+  const focusIndex = (opts.focusIndex != null) ? opts.focusIndex : -1;
+
+  // geometria: barras 90px, gap, +1 coluna p/ Total separado
+  const bw = 90;
+  const slots = n + 1;                                        // +1 = coluna Total
+  const usable = W - reserveL;
+  const step = Math.min(140, usable / (slots + 0.2));         // centro-a-centro
+  const x0 = reserveL + (usable - (slots*step)) / 2 + (step - bw)/2;
+  const maxTop = (opts.scaleMax != null) ? opts.scaleMax : total;
+  const scale = (H - 30) / maxTop;
+
+  el.style.position = 'relative';
+  el.style.height = H + 'px';
+  el.innerHTML = '';
+  const mkdiv = (style) => { const d = document.createElement('div'); d.style.cssText = style; el.appendChild(d); return d; };
+
+  // shade da barra-foco — 🔒 R3: filho de EL (container das barras)
+  if(focusIndex >= 0 && focusIndex <= n){
+    const fx = x0 + focusIndex*step - 12;
+    mkdiv(`position:absolute; left:${fx}px; top:0; width:${bw+24}px; height:${H}px; background:var(--grey-shade); z-index:0;`);
+  }
+
+  // barras de decomposição (flutuantes) + valores + conectores
+  let cum = 0;
+  const tx = x0 + n*step;                                     // X da barra Total
+  bars.forEach((b, i) => {
+    const h = Math.abs(b.v) * scale;
+    const bb = (b.v >= 0 ? cum : cum + b.v) * scale;
+    const xx = x0 + i*step;
+    const col = (barColors && barColors[i]) ? barColors[i] : 'var(--blue-light)';
+    mkdiv(`position:absolute; left:${xx}px; bottom:${bb}px; width:${bw}px; height:${h}px; background:${col}; z-index:1;`);
+    const numTxt = b.v < 0 ? '('+FMT.num(Math.abs(b.v))+')' : FMT.num(b.v);
+    if(bb > 0.5){
+      const lbl = mkdiv(`position:absolute; left:${xx}px; bottom:${bb+h/2}px; transform:translateY(50%); width:${bw}px; text-align:center; font-weight:700; font-size:10pt; color:var(--navy); z-index:2;`);
+      lbl.setAttribute('contenteditable','true'); lbl.textContent = numTxt;
+    } else {
+      const lbl = mkdiv(`position:absolute; left:${xx}px; bottom:${bb+h+4}px; width:${bw}px; text-align:center; font-weight:700; font-size:10pt; color:var(--navy); z-index:2;`);
+      lbl.setAttribute('contenteditable','true'); lbl.textContent = numTxt;
+    }
+    cum += b.v;
+    const cy = cum * scale;
+    if(i < n-1) mkdiv(`position:absolute; left:${xx+bw}px; bottom:${cy}px; width:${step-bw}px; border-top:1px dashed var(--navy); z-index:1;`);
+    else        mkdiv(`position:absolute; left:${xx+bw}px; bottom:${cy}px; width:${tx-(xx+bw)}px; border-top:1px dashed var(--navy); z-index:1;`);
+  });
+
+  // barra Total (cheia, separada)
+  const th = total * scale;
+  mkdiv(`position:absolute; left:${tx}px; bottom:0; width:${bw}px; height:${th}px; background:${totalColor}; z-index:1;`);
+  const totLbl = mkdiv(`position:absolute; left:${tx}px; bottom:${th+4}px; width:${bw}px; text-align:center; font-weight:700; font-size:10.5pt; color:var(--navy); z-index:2;`);
+  totLbl.setAttribute('contenteditable','true'); totLbl.innerHTML = `<b>${FMT.num(total)}</b>`;
+
+  // labels das barras (container irmão)
+  const labels = opts.labelsId ? document.getElementById(opts.labelsId) : null;
+  if(labels){
+    labels.style.position='relative'; labels.innerHTML='';
+    bars.forEach((b,i)=>{ const xx=x0+i*step;
+      const d=document.createElement('div'); d.style.cssText=`position:absolute; left:${xx}px; top:0; width:${bw}px; text-align:center; font-size:10pt; color:var(--navy); line-height:1.2;`;
+      d.setAttribute('contenteditable','true'); d.innerHTML=b.n; labels.appendChild(d); });
+    const dt=document.createElement('div'); dt.style.cssText=`position:absolute; left:${tx}px; top:0; width:${bw}px; text-align:center; font-size:10pt; font-weight:700; color:var(--navy);`;
+    dt.setAttribute('contenteditable','true'); dt.textContent=totalLabel; labels.appendChild(dt);
+  }
+
+  // faixa "% do pacote" (container irmão)
+  const pctEl = opts.pctId ? document.getElementById(opts.pctId) : null;
+  if(pctEl){
+    pctEl.style.position='relative'; pctEl.innerHTML='';
+    const head=document.createElement('div'); head.style.cssText='position:absolute; left:0; top:0; width:80px; font-size:10pt; font-weight:700; color:var(--navy); font-style:italic;';
+    head.className='it'; head.setAttribute('contenteditable','true'); head.textContent=pctLabel; pctEl.appendChild(head);
+    bars.forEach((b,i)=>{ const xx=x0+i*step; const p=b.v/pctBase*100;
+      const d=document.createElement('div'); d.style.cssText=`position:absolute; left:${xx}px; top:0; width:${bw}px; text-align:center; font-size:10pt; color:var(--navy);`;
+      d.setAttribute('contenteditable','true'); d.textContent = (p<0?'('+Math.abs(p).toFixed(1)+'%)':p.toFixed(1)+'%'); pctEl.appendChild(d); });
+    const totPct = (opts.pctBase != null) ? (total/pctBase*100).toFixed(1)+'%' : '100%';
+    const dt=document.createElement('div'); dt.style.cssText=`position:absolute; left:${tx}px; top:0; width:${bw}px; text-align:center; font-size:10pt; font-weight:700; color:var(--navy);`;
+    dt.setAttribute('contenteditable','true'); dt.textContent=totPct; pctEl.appendChild(dt);
+  }
+}
+
+/* ============================================================
+   12e. renderResumoGeral(hostId, groups, cfg) — TABELA Dir×Regional 2 COLUNAS
+   NÃO existia na v3. Implementado conforme padrão de tabela do §11.3:
+   balanceia os agrupamentos em 2 colunas, cada coluna com subtotais por grupo
+   e a tabela inteira fecha com TOTAL GERAL (reconciliação §1.2).
+   groups: [{nome, linhas:[{label, valor}]}]   cfg: {valLabel, grpLabel, dec}
+   ============================================================ */
+function renderResumoGeral(hostId, groups, cfg){
+  const host = document.getElementById(hostId); if(!host) return;
+  cfg = cfg || {};
+  const dec = (cfg.dec != null) ? cfg.dec : 1;
+  const valLabel = cfg.valLabel || 'Valor';
+  const grpLabel = cfg.grpLabel || 'Agrupamento';
+
+  // balanceia em 2 colunas equilibrando o nº total de LINHAS (subtotal conta como 1)
+  const weight = g => g.linhas.length + 1;
+  const totalW = groups.reduce((a,g)=>a+weight(g), 0);
+  const colA = [], colB = []; let wA = 0;
+  groups.forEach(g => { if(wA < totalW/2 || colB.length===0 && groups.indexOf(g)===groups.length-1){ colA.push(g); wA += weight(g); } else colB.push(g); });
+  if(!colB.length && colA.length > 1) colB.push(colA.pop());
+
+  const colTbl = (cols) => {
+    let body = '';
+    cols.forEach(g => {
+      g.linhas.forEach(l => {
+        body += `<tr><td contenteditable="true">${l.label}</td><td class="computed num">${FMT.num(l.valor, dec)}</td></tr>`;
+      });
+      const sub = g.linhas.reduce((a,l)=>a+l.valor, 0);
+      body += `<tr class="subtotal"><td>${g.nome}</td><td class="computed num">${FMT.num(sub, dec)}</td></tr>`;
+    });
+    return `<table class="tbl"><thead><tr><th>${grpLabel}</th><th class="num">${valLabel}</th></tr></thead><tbody>${body}</tbody></table>`;
+  };
+
+  const grandTotal = groups.reduce((a,g)=> a + g.linhas.reduce((s,l)=>s+l.valor,0), 0);
+  host.innerHTML =
+    `<div style="display:flex; gap:32px; align-items:flex-start;">` +
+      `<div>${colTbl(colA)}</div>` +
+      `<div>${colTbl(colB)}</div>` +
+    `</div>`;
+  // TOTAL GERAL embaixo, centralizado (reconcilia as duas colunas)
+  const tot = document.createElement('div');
+  tot.style.cssText = 'width:100%; text-align:center; margin-top:14px; font-weight:800; color:var(--navy); border-top:2px solid var(--navy); padding-top:8px;';
+  tot.innerHTML = `Total geral &nbsp; <span class="computed">${FMT.num(grandTotal, dec)}</span>`;
+  host.appendChild(tot);
+}
+
+/* ============================================================
+   12f. ANÁLISE VIVA (Modo A) — esqueleto da spec §12.2 (nomes/semântica exatos).
+   A v3 NÃO tem isto (números hardcoded). Vem da SPEC, com DADO-EXEMPLO.
+   A skill injeta as unidades reais (units) e o método declarado.
+   ============================================================ */
+
+// makeBucketState(bucket) — estado independente de cada análise (spec §12.2)
+function makeBucketState(bucket){
+  return {
+    bucket,
+    indicador: 'r_10k_driver',   // r_loja | r_<drv> | r_10k_<drv>
+    meta: 'median',              // 'median' (P50) | 'q1' (P25)
+    cap: 30,
+    capEnabled: true,
+    maxBars: 41,                 // R6: drawer, nunca literal no render
+    unidadeAnalise: 'loja',
+    filters: { dir:[], reg:[], tipo:[], tam:[], clu:[], idd:[] },
+    clusterDims: [],
+    sortDetalhe: { col:'baseline', dir:'desc' },
+    drillCluster: null,
+    showAvisos: true,
+    _lastUnits: null,
+    _lastBenchmarks: null
+  };
+}
+
+function clusterKey(u, state){
+  return state.clusterDims.length ? state.clusterDims.map(d=>u[d]).join('|') : '__all__';
+}
+
+// computeBenchmarks(units, state) — referências por cluster (spec §12.2)
+function computeBenchmarks(units, state){
+  const indOf = u => {
+    if(state.indicador === 'r_loja') return u.gasto;
+    if(state.indicador.startsWith('r_10k_')) return u.driver>0 ? u.gasto/(u.driver/10000) : 0;
+    return u.driver>0 ? u.gasto/u.driver : 0;
+  };
+  const groups = {};
+  units.forEach(u => { const k = clusterKey(u, state); (groups[k] = groups[k] || []).push(indOf(u)); });
+  const out = {};
+  for(const k in groups){
+    const arr = groups[k];
+    out[k] = { n:arr.length, median:median(arr), q1:quantile(arr,0.25), q3:quantile(arr,0.75) };
+  }
+  state._lastBenchmarks = out;
+  return out;
+}
+
+// computeOportunidade(unit, benchmarks, state) — fórmula canônica (spec §12.2 / §4.3)
+function computeOportunidade(unit, benchmarks, state){
+  const bench = benchmarks[clusterKey(unit, state)];
+  if(!bench) return { oport:0, gastoMeta:0, benchInd:0 };
+  const benchInd = bench[state.meta === 'q1' ? 'q1' : 'median'];
+  const ind = (state.indicador === 'r_loja') ? unit.gasto
+            : (state.indicador.startsWith('r_10k_')) ? (unit.driver>0 ? unit.gasto/(unit.driver/10000) : 0)
+            : (unit.driver>0 ? unit.gasto/unit.driver : 0);
+  if(ind <= benchInd) return { oport:0, gastoMeta:0, benchInd, ind };
+  let gastoMeta;
+  if(state.indicador === 'r_loja')              gastoMeta = benchInd;
+  else if(state.indicador.startsWith('r_10k_')) gastoMeta = benchInd * (unit.driver/10000);
+  else                                          gastoMeta = benchInd * unit.driver;
+  const gapTeorico = Math.max(0, unit.gasto - gastoMeta);
+  const oport = state.capEnabled ? Math.min(gapTeorico, unit.gasto * state.cap/100) : gapTeorico;
+  return { oport, gastoMeta, benchInd, ind };
+}
+
+// estado vivo por bucket (a skill injeta units reais; aqui dado-exemplo)
+const BUCKET_STATES = {};
+function recomputeAnalise(bucket){
+  const state = BUCKET_STATES[bucket]; if(!state) return 0;
+  const units = state._lastUnits || [];
+  const bench = computeBenchmarks(units, state);
+  let oportTotal = 0;
+  units.forEach(u => { oportTotal += computeOportunidade(u, bench, state).oport; });
+  // atualiza callout do slide ativo + KPIs do drawer
+  const slide = document.querySelector('.slide.active[data-bucket="'+bucket+'"]') || document.querySelector('.slide.active');
+  if(slide){
+    const callout = slide.querySelector('[data-av-callout]');
+    if(callout) callout.innerHTML = 'Oportunidade<br>' + FMT.mm(oportTotal);
+  }
+  const ov = document.getElementById('av-out-val'); if(ov) ov.textContent = FMT.mm(oportTotal);
+  const on = document.getElementById('av-out-note');
+  if(on) on.textContent = `meta=${state.meta} · cap=${state.capEnabled?state.cap+'%':'off'} · cluster=${state.clusterDims.join('|')||'(todos)'} · maxBars=${state.maxBars} · N=${units.length}`;
+  return oportTotal;
+}
+
+// bind dos controles do analysis-drawer -> mutam state -> recompute
+function bindAnalysisDrawer(){
+  const drw = document.getElementById('analysis-drawer'); if(!drw || drw.dataset.bound) return;
+  drw.dataset.bound = '1';
+  const cur = () => document.querySelector('.slide.active')?.dataset.bucket;
+  const meta = document.getElementById('av-meta'), cap = document.getElementById('av-cap'),
+        capOn = document.getElementById('av-cap-on'), maxB = document.getElementById('av-maxbars'),
+        clu = document.getElementById('av-cluster');
+  const sync = () => {
+    const b = cur(); const st = BUCKET_STATES[b]; if(!st) return;
+    st.meta = meta.value; st.cap = +cap.value; st.capEnabled = capOn.checked; st.maxBars = +maxB.value;
+    st.clusterDims = Array.from(clu.selectedOptions).map(o=>o.value);
+    recomputeAnalise(b);
+  };
+  [meta, cap, maxB].forEach(c => c.addEventListener('input', sync));
+  capOn.addEventListener('change', sync);
+  clu.addEventListener('change', sync);
+}
+
+/* ============================================================
+   12g. DEMO DATA (placeholder) — a skill substitui por dados reais.
+   <!-- EXEMPLO: a skill injeta dados reais aqui -->
+   ============================================================ */
+const DEMO = {
+  // renderTornado: ranking por indicador (R$/10k driver, p.ex.)
+  tornado: {
+    indLabel: 'R$/10k driver (ineficiência)',
+    meta: 'median', maxBars: 12, dec: 1,
+    data: [
+      {label:'Telefonia móvel', valor:38.0},
+      {label:'Frete dedicado',  valor:31.2},
+      {label:'Manutenção',      valor:27.5},
+      {label:'Energia',         valor:22.0},
+      {label:'Vigilância',      valor:18.4},
+      {label:'Limpeza',         valor:14.1},
+      {label:'Material escr.',  valor:11.3},
+      {label:'Viagens',         valor:9.0},
+      {label:'Locação TI',      valor:7.6},
+      {label:'Correios',        valor:5.2},
+      {label:'Treinamento',     valor:4.1},
+      {label:'Cartório',        valor:2.8},
+      {label:'Brindes',         valor:1.9},
+      {label:'Estacionamento',  valor:1.2},
+      {label:'Cafeteria',       valor:0.7}
+    ]
+  },
+  // renderBuildup: waterfall do pacote (decomposição + Total)
+  buildup: {
+    total: 91.0, totalLabel: 'Total', pctBase: 91.0,
+    bars: [
+      {n:'Rede<br>Telefonia<br>Terceira', v:60.5},
+      {n:'Dados', v:22.0},
+      {n:'Conectividade<br>Corporativa', v:8.5}
+    ]
+  },
+  // renderResumoGeral: agrupamentos (Diretoria com regionais dentro)
+  resumoGeral: {
+    valLabel:'Baseline', grpLabel:'Diretoria / Regional', dec:1,
+    groups: [
+      {nome:'Dir. Sudeste', linhas:[{label:'Regional SP', valor:120.4},{label:'Regional RJ', valor:64.2},{label:'Regional MG', valor:38.7}]},
+      {nome:'Dir. Sul',     linhas:[{label:'Regional PR', valor:41.0},{label:'Regional RS', valor:33.8},{label:'Regional SC', valor:22.1}]},
+      {nome:'Dir. Nordeste',linhas:[{label:'Regional BA', valor:28.5},{label:'Regional PE', valor:19.9}]},
+      {nome:'Dir. Norte',   linhas:[{label:'Regional PA', valor:12.3},{label:'Regional AM', valor:9.6}]}
+    ]
+  },
+  // análise viva: unidades de exemplo (a skill injeta as reais)
+  analiseViva: {
+    bucket: 'custo-frete',
+    units: [
+      {id:'L01', dir:'SE', tipo:'A', gasto:1.20, driver:8000},
+      {id:'L02', dir:'SE', tipo:'A', gasto:0.95, driver:7600},
+      {id:'L03', dir:'SE', tipo:'B', gasto:1.80, driver:6200},
+      {id:'L04', dir:'SU', tipo:'A', gasto:0.70, driver:9100},
+      {id:'L05', dir:'SU', tipo:'B', gasto:1.40, driver:5300},
+      {id:'L06', dir:'NE', tipo:'A', gasto:2.10, driver:4800},
+      {id:'L07', dir:'NE', tipo:'B', gasto:0.55, driver:7200},
+      {id:'L08', dir:'NO', tipo:'A', gasto:1.95, driver:5100}
+    ]
+  }
+};
+
+/* ============================================================
+   12h. DISPATCH — renderActive(): redesenha o slide ativo por data-render
+   Padrão equivalente ao renderActive() do v3 (dispatch por id), mas
+   guiado por data-render/data-target no <section> (mais portável p/ a skill).
+   ============================================================ */
+function renderActive(){
+  const slide = document.querySelector('.slide.active'); if(!slide) return;
+  const kind = slide.dataset.render;
+  const tgt  = slide.dataset.target;
+
+  if(kind === 'tornado'){
+    renderTornado(tgt, DEMO.tornado.data, {meta:DEMO.tornado.meta, maxBars:DEMO.tornado.maxBars, dec:DEMO.tornado.dec, indLabel:DEMO.tornado.indLabel});
+  }
+  else if(kind === 'analiseViva'){
+    const b = slide.dataset.bucket || DEMO.analiseViva.bucket;
+    if(!BUCKET_STATES[b]){
+      BUCKET_STATES[b] = makeBucketState(b);
+      BUCKET_STATES[b]._lastUnits = DEMO.analiseViva.units;   // skill injeta units reais
+      BUCKET_STATES[b].indicador = 'r_10k_driver';
+      BUCKET_STATES[b].maxBars = 12;
+    }
+    // host: ranking SVG das unidades + tabela leve (reaproveita o tornado p/ visual)
+    const host = document.getElementById(tgt);
+    if(host && !host.querySelector('svg')){
+      host.innerHTML = '<svg id="av-svg" viewBox="0 0 980 420" width="78%" height="100%" preserveAspectRatio="xMidYMid meet"></svg>';
+    }
+    const st = BUCKET_STATES[b];
+    const rows = st._lastUnits.map(u => ({label:u.id, valor: u.driver>0 ? +(u.gasto/(u.driver/10000)).toFixed(2) : 0}));
+    renderTornado('av-svg', rows, {meta:st.meta, maxBars:st.maxBars, dec:2, indLabel:'R$/10k driver'});
+    recomputeAnalise(b);
+  }
+  else if(kind === 'resumoGeral'){
+    renderResumoGeral(tgt, DEMO.resumoGeral.groups, {valLabel:DEMO.resumoGeral.valLabel, grpLabel:DEMO.resumoGeral.grpLabel, dec:DEMO.resumoGeral.dec});
+  }
+  else if(slide.dataset.id === 'buildup-001'){
+    // buildup-pacote: foca a 1ª barra como exemplo do shade móvel
+    renderBuildup('buildup-bars', DEMO.buildup.bars, {
+      total: DEMO.buildup.total, totalLabel: DEMO.buildup.totalLabel, pctBase: DEMO.buildup.pctBase,
+      focusIndex: 0, labelsId:'buildup-labels', pctId:'buildup-pct'
+    });
+  }
+  // re-aplica binds nos elementos recém-criados
+  bindEditable(); bindDraggable();
+  checkOverflow(slide);
+}
+
+/* ============================================================
+   13. MAPA-MESTRE — drawer + toggle 3 estados
+   ============================================================ */
+/* drawer e btn-master bindados em init() */
+let drawer;
+
+function renderMaster(){
+  // calcula totais
+  let tV = 0, tA = 0, tP = 0;
+  STATE.analyses.forEach(a => {
+    const v = parseFloat(a.value) || 0;
+    if(a.state === 'validada') tV += v;
+    else if(a.state === 'adicional') tA += v;
+    else tP += v;
+  });
+  const fmt = n => `R$ ${n.toFixed(1).replace('.', ',')} MM`;
+  document.getElementById('tot-validada').textContent = fmt(tV);
+  document.getElementById('tot-adicional').textContent = fmt(tA);
+  document.getElementById('tot-preliminar').textContent = fmt(tP);
+
+  // re-render do estado dos botões
+  document.querySelectorAll('.toggle-3').forEach(tg => {
+    const aid = tg.dataset.analysisId;
+    const analysis = STATE.analyses.find(a => a.id === aid);
+    if(!analysis) return;
+    tg.querySelectorAll('button').forEach(btn => {
+      btn.classList.toggle('on', btn.dataset.state === analysis.state);
+    });
+  });
+}
+
+// click handler para toggle (event delegation)
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.toggle-3 button');
+  if(!btn) return;
+  const tg = btn.closest('.toggle-3');
+  const aid = tg.dataset.analysisId;
+  const newState = btn.dataset.state;
+
+  const analysis = STATE.analyses.find(a => a.id === aid);
+  if(!analysis) return;
+
+  analysis.state = newState;
+  saveState();
+  renderMaster();
+  propagateClassification(aid, newState);
+});
+
+function propagateClassification(analysisId, state){
+  // 1. Liga/desliga badge PRELIMINAR no slide individual
+  const slide = document.querySelector(`.slide[data-analysis-id="${analysisId}"]`);
+  if(slide){
+    const badge = slide.querySelector('.badge[data-badge="PRELIMINAR"]');
+    if(badge) badge.classList.toggle('hidden', state !== 'preliminar');
+  }
+
+  // 2. Atualiza linha no mapa-de-análises por conta (R$ aparece/some)
+  document.querySelectorAll(`[data-mapa-row-analysis="${analysisId}"]`).forEach(row => {
+    const valCell = row.querySelector('.r-valor');
+    if(!valCell) return;
+    const analysis = STATE.analyses.find(a => a.id === analysisId);
+    if(state === 'preliminar'){
+      valCell.textContent = '—'; // ou R$ 0,0 — convenção: linha continua, mas valor não soma
+    } else {
+      valCell.textContent = `R$ ${parseFloat(analysis.value).toFixed(1).replace('.', ',')} MM`;
+    }
+  });
+  rerenderPlacar();
+}
+
+function rerenderPlacar(){
+  console.log('[placar] re-render triggered');
+}
+
+function exportJSON(){
+  const json = JSON.stringify(STATE, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `storyline-state-${Date.now()}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function saveAsHTML(){
+  const html = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+  const blob = new Blob([html], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `storyline-${Date.now()}.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function init(){
+  try {
+    loadState();
+    applyLogos();
+    applyScale();
+    bindEditable();
+    bindDraggable();
+    bindAnalysisDrawer();
+
+    drawer = document.getElementById('master-drawer');
+    const adrawer = document.getElementById('analysis-drawer');
+    document.getElementById('btn-prev').addEventListener('click', () => showSlide(STATE.currentSlide - 1));
+    document.getElementById('btn-next').addEventListener('click', () => showSlide(STATE.currentSlide + 1));
+    document.getElementById('btn-master').addEventListener('click', () => {
+      drawer.classList.toggle('open');
+      renderMaster();
+    });
+    document.getElementById('btn-export-json').addEventListener('click', exportJSON);
+    document.getElementById('btn-save').addEventListener('click', saveAsHTML);
+    document.getElementById('btn-reset').addEventListener('click', resetState);
+    document.getElementById('btn-create-bubble').addEventListener('click', createBubble);
+
+    renderMaster();
+    showSlide(STATE.currentSlide || 0);   // showSlide chama renderActive()
+    getSlides().forEach(s => checkOverflow(s));
+  } catch(e) {
+    console.error('[init] erro:', e);
+    alert('Erro na inicialização do deck: ' + e.message);
+  }
+}
+window.addEventListener('load', init);
+</script>
+
+</body>
+</html>
