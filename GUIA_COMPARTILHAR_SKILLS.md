@@ -2,26 +2,24 @@
 
 > Como cada consultor versiona suas skills num repo GitHub e como o time se conecta aos repos uns dos
 > outros mantendo tudo atualizado. Validado contra as docs oficiais (https://code.claude.com/docs —
-> `skills`, `plugins`, `plugin-marketplaces`, `settings`). **Confirme a sintaxe na sua versão** do Claude Code
+> `skills`, `plugins`, `plugin-marketplaces`, `settings`, `vs-code`, `cli-reference`). **Confirme a sintaxe na sua versão** do Claude Code
 > (`claude --version`); alguns campos são recentes (marcados como *v2.1.x+*).
 
-## O modelo em 3 níveis (e o caminho de promoção)
+## O modelo em 2 níveis
 
 | Nível | Para quê | Mecanismo | Auto-update |
 |---|---|---|---|
 | **0. Local (dev)** | skill SUA, em construção; editar e ver ao vivo | *junction/symlink* `~/.claude/skills/x` → seu clone git | — (é o seu working copy) |
 | **1. Grassroots** | compartilhar ad-hoc com colegas | **seu repo vira um marketplace leve**; colega faz `/plugin marketplace add você/repo` | opcional (`autoUpdate`) |
-| **2. Curado** | skills validadas pelo time de analytics | **marketplace central do time** referenciando os repos via `source: github` | recomendado (`autoUpdate:true`) |
 
-Promoção natural: você prototipa no **nível 0** (junction) → publica no **nível 1** (seu marketplace) → quando
-o analytics valida, ela é **promovida para o nível 2** (entra no marketplace central, sem você mover arquivo —
-o central só passa a referenciar seu repo / uma versão pinada dele).
+Caminho natural: você prototipa no **nível 0** (junction, dev local) e, quando quer compartilhar, **publica no
+nível 1** — seu repo vira um marketplace leve que os colegas adicionam.
 
 ## Por que NÃO usar git-pull como mecanismo de compartilhamento
 
 `git pull` + junction é manual, por-pessoa-por-repo e **sem** auto-update. Ele é ótimo como ferramenta de
 **dev local da sua própria skill** (nível 0), mas ruim para *distribuir*. Para compartilhar, use marketplace
-(níveis 1/2): o colega adiciona uma vez e recebe atualização nativa.
+(nível 1): o colega adiciona uma vez e recebe atualização nativa.
 
 ---
 
@@ -127,8 +125,7 @@ gradus-skills-MU/
 }
 ```
 > Schema real (validado com `claude plugin validate .`): a descrição vai em **`metadata.description`**, nunca na
-> raiz; `source` local = **string de caminho** (`"./"` no pacotão, `"./plugins/<x>"` por skill); `source` externo
-> (nível 2) é um **objeto** (ver 4.1).
+> raiz; `source` local = **string de caminho** (`"./"` no pacotão, `"./plugins/<x>"` por skill).
 
 ### 3.3 `plugins/<skill>/.claude-plugin/plugin.json` (um por skill no modelo A)
 ```json
@@ -209,59 +206,31 @@ Arquivos soltos num diretório `plugins/` **não** são carregados sozinhos — 
 
 ---
 
-## Parte 4 — Nível 2: marketplace central do time (curado)
+## Gerir plugins no VS Code (UI)
 
-O time de analytics mantém **um** repo (ex.: `gradus/gradus-skills-marketplace`) cujo `marketplace.json`
-**referencia o repo de cada consultor** via `source: github` — não copia arquivo. Skills validadas entram aqui.
+Na extensão do **VS Code** dá para gerir plugins por uma **UI** — não precisa decorar comando.
 
-### 4.1 `.claude-plugin/marketplace.json` do repo central
-```json
-{
-  "name": "gradus",
-  "owner": { "name": "Analytics Gradus" },
-  "metadata": { "description": "Skills validadas — analytics Gradus" },
-  "plugins": [
-    { "name": "murilo", "source": { "source": "github", "repo": "gradusmsimao/gradus-skills-MU", "ref": "v1.0.0" } },
-    { "name": "fulano", "source": { "source": "github", "repo": "fulano/skills" } }
-  ]
-}
-```
-`ref`/`sha` **pinam** uma versão (curadoria = versão estável, não o último commit de cada um).
+- **Abrir:** digite **`/plugins`** no prompt (ou menu `/` → **Customize** → **Manage plugins**). Abre o diálogo
+  "Manage plugins", com duas abas.
+- **Aba Plugins:** os instalados no topo com **toggle** (habilita/desabilita); os disponíveis abaixo (filtrados
+  pelos marketplaces configurados); **busca** por nome/descrição; botão **Install**. Ao instalar, escolhe o
+  **escopo**: *Install for you* (user) · *for this project* (project) · *locally* (local).
+- **Aba Marketplaces:** adicione um marketplace por **repo GitHub / URL / caminho local**; ícone de **refresh**
+  atualiza a lista; **lixeira** remove. Um banner pede para **reiniciar o Claude Code** após mudanças.
+- **Mesma base do CLI:** *"plugin management in VS Code uses the same CLI commands under the hood"* — o que você
+  configura na UI vale no `claude plugin …` e vice-versa (sincronizado).
+- **Recarregar** após editar uma skill/agent/hook: **`/reload-plugins`**.
+- As skills de plugin aparecem no menu `/` com **namespace**: `/<plugin>:<skill>` (ex.: `/gradus-explore:gradus-explore`).
 
-### 4.2 Cada consultor adiciona só ESTE marketplace (1x)
-```bash
-/plugin marketplace add gradus/gradus-skills-marketplace
-/plugin install murilo@gradus
-```
-
-### 4.3 Distribuição + auto-update via `settings.json`
-Em `~/.claude/settings.json` (pessoal) ou no `.claude/settings.json` do projeto, o time pode pré-cadastrar o
-marketplace e habilitar auto-update — aí ele é adicionado/atualizado sozinho:
-```json
-{
-  "extraKnownMarketplaces": {
-    "gradus": {
-      "source": { "source": "github", "repo": "gradus/gradus-skills-marketplace" },
-      "autoUpdate": true
-    }
-  },
-  "enabledPlugins": { "murilo@gradus": true }
-}
-```
-> `autoUpdate` e o auto-install via `enabledPlugins` são recentes (*v2.1.150+*); confirme na sua versão.
-
-### 4.4 Repos privados + auto-update no background
-Interativo usa o seu `gh auth`. Para o **auto-update em background** de repo **privado**, exporte um token:
-```bash
-export GITHUB_TOKEN=ghp_xxx        # ou GH_TOKEN  (Windows: setx GITHUB_TOKEN ghp_xxx)
-```
+> ⚠️ A grafia do slash pode variar por versão: **`/plugins`** abre a UI; subcomandos como `/plugin marketplace add`
+> também existem como `claude plugin …` no terminal. Confirme no seu Claude Code (`claude --version`).
 
 ---
 
 ## Atualização — colinha de comandos
 
 ```bash
-/plugin                              # UI: Discover | Installed | Marketplaces | Errors
+/plugins                             # abre o gerenciador "Manage plugins" (UI; ver seção VS Code)
 /plugin marketplace list             # marketplaces conhecidos
 /plugin marketplace update [nome]    # puxa as últimas versões (ou todos se omitir)
 /plugin marketplace remove <nome>
@@ -278,10 +247,9 @@ Tudo também existe como CLI não-interativa: `claude plugin marketplace add ...
 Skills de plugin ficam com namespace (`<plugin>:<skill>`), então não colidem.
 
 ## Fluxo recomendado para a Gradus
-1. **Prototipe** sua skill no nível 0 (junction) no seu `gradus-skills`.
-2. **Publique** como marketplace (nível 1); colegas que quiserem fazem `/plugin marketplace add você/repo`.
-3. Quando o analytics **validar**, a skill é **promovida** ao marketplace central (nível 2) com `ref` pinado +
-   `autoUpdate` — e cai automaticamente para todo o time.
+1. **Prototipe** sua skill no nível 0 (junction) no seu `gradus-skills-MU`.
+2. **Publique** como marketplace (nível 1); colegas fazem `/plugin marketplace add você/repo` **ou instalam
+   pela UI do VS Code** (`/plugins`).
 
 ## Notas de integridade
 - Os mecanismos acima são das docs oficiais; campos marcados *v2.1.x+* podem não existir em versões antigas.
